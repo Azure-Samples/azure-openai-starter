@@ -1,0 +1,33 @@
+# Dependencies
+src/typescript/node_modules/
+npm-debug.log*
+
+# Build outputs
+src/typescript/dist/
+src/typescript/*.js
+src/typescript/*.js.map
+
+# Environment variables
+.env
+.env.local
+
+# Python
+src/python/__pycache__/
+src/python/*.pyc
+src/python/*.pyo
+.venv/
+
+# Azure
+.azure/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/settings.json
+.idea/
+
+# Bicep generated files
+infra/*.json
+!infra/main.parameters.json

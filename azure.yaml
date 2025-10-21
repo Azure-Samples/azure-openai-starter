@@ -1,0 +1,10 @@
+name: azure-openai-minimal
+metadata:
+  template: azure-openai-minimal@0.0.1-beta
+  author: GitHub Copilot
+  description: Minimal Azure OpenAI GPT-5-mini deployment using Azure Developer CLI
+
+workflows:
+  up:
+    - azd: provision
+      continueOnError: true
