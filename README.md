@@ -34,87 +34,159 @@ That's it! 🚀 You now have **Azure OpenAI** with **GPT-5-mini** model deployed
 
 ## Next Steps
 
-### 1. Get Your Connection Details
-```bash
-# See all your deployment info
-azd env get-values
+### Option A: EntraID Authentication (Recommended) 🔐
 
-# Key outputs you'll need:
-# AZURE_ENV_NAME=YOUR_ENV_NAME
-# AZURE_OPENAI_NAME=YOUR_RESOURCE_NAME
-# AZURE_OPENAI_ENDPOINT=YOUR_ENDPOINT
-# AZURE_OPENAI_GPT_DEPLOYMENT_NAME=YOUR_MODEL
+**Use keyless authentication with Azure Identity - the secure, production-ready approach.**
+
+<details open>
+<summary><strong>Click to expand EntraID setup and code examples</strong></summary>
+
+**Setup Steps:**
+```bash
+# 1. Get your endpoint
+azd env get-values | Select-String 'AZURE_OPENAI_ENDPOINT'
+
+# 2. Set environment variable
+$env:AZURE_OPENAI_ENDPOINT="YOUR_ENDPOINT_FROM_ABOVE"
+
+# 3. Assign yourself the OpenAI User role
+$userId = az ad signed-in-user show --query id -o tsv
+$resourceId = "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-YOUR_ENV_NAME/providers/Microsoft.CognitiveServices/accounts/YOUR_OPENAI_NAME"
+az role assignment create --role "Cognitive Services OpenAI User" --assignee $userId --scope $resourceId
+
+# 4. Run EntraID examples
+cd src/python && python responses_example_entra.py
+# or
+cd src/typescript && tsx responses_example_entra.ts
 ```
 
-### 2. Get Your API Key
-```bash
-# Copy and paste the 2 azd env values from above, then run:
-az cognitiveservices account keys list --name YOUR_RESOURCE_NAME --resource-group rg-YOUR_ENV_NAME
-```
-
-### 3. Start Using GPT-5-mini
-
-**📖 See [CLIENT_README.md](CLIENT_README.md) for detailed setup (Python & TypeScript)**
-
-**Quick examples using the new Responses API:**
-
-**Python:**
+**Python Code:**
 ```python
 from openai import OpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    "https://cognitiveservices.azure.com/.default"
+)
 
 client = OpenAI(
-    api_key="YOUR_API_KEY", 
-    base_url="YOUR_ENDPOINT/openai/v1/"  # Note the /v1/ suffix
+    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
+    api_key=token_provider
 )
 
 response = client.responses.create(
-    model="YOUR_MODEL",  # This is your deployment name
+    model="gpt-5-mini",
     input="Explain quantum computing in simple terms",
-    max_output_tokens=1000  # Higher for reasoning models
+    max_output_tokens=1000
 )
 print(response.output_text)
 ```
 
-**TypeScript/Node.js:**
+**TypeScript Code:**
+```typescript
+import OpenAI from "openai";
+import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+
+const tokenProvider = getBearerTokenProvider(
+    new DefaultAzureCredential(),
+    "https://cognitiveservices.azure.com/.default"
+);
+
+const client = new OpenAI({
+    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
+    apiKey: tokenProvider as any
+});
+
+const response = await client.responses.create({
+    model: "gpt-5-mini",
+    input: "Explain quantum computing in simple terms",
+    max_output_tokens: 1000
+});
+console.log(response.output_text);
+```
+
+**Why EntraID?**
+✅ No API keys to manage or rotate  
+✅ Better security with Azure RBAC  
+✅ Works with your Azure login  
+✅ Production-ready and enterprise-grade
+
+</details>
+
+---
+
+### Option B: API Key Authentication (Quick Start)
+
+**For quick testing and development:**
+
+<details>
+<summary><strong>Click to expand API key setup and code examples</strong></summary>
+
+**Setup Steps:**
+```bash
+# 1. Get your deployment info
+azd env get-values
+
+# 2. Get your API key
+az cognitiveservices account keys list --name YOUR_RESOURCE_NAME --resource-group rg-YOUR_ENV_NAME
+
+# 3. Set environment variables
+$env:AZURE_OPENAI_ENDPOINT="YOUR_ENDPOINT"
+$env:AZURE_OPENAI_API_KEY="YOUR_API_KEY"
+
+# 4. Run API key examples
+cd src/python && python responses_example.py
+# or
+cd src/typescript && npm start
+```
+
+**Python Code:**
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"), 
+    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/"
+)
+
+response = client.responses.create(
+    model="gpt-5-mini",
+    input="Explain quantum computing in simple terms",
+    max_output_tokens=1000
+)
+print(response.output_text)
+```
+
+**TypeScript Code:**
 ```typescript
 import OpenAI from 'openai';
 
 const client = new OpenAI({
-    apiKey: "YOUR_API_KEY",
-    baseURL: "YOUR_ENDPOINT/openai/v1/"
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`
 });
 
 const response = await client.responses.create({
-    model: "YOUR_MODEL",
+    model: "gpt-5-mini",
     input: "Explain quantum computing in simple terms",
-    maxOutputTokens: 1000  // Higher for reasoning models
+    max_output_tokens: 1000
 });
-console.log(response.outputText);
+console.log(response.output_text);
 ```
 
-**Or run the included examples:**
-```bash
-# Python - Responses API with API Key
-cd src/python && python responses_example.py
+</details>
 
-# Python - Responses API with EntraID (keyless)
-cd src/python && python responses_example_entra.py
+---
 
-# TypeScript - Responses API with API Key
-cd src/typescript && npm start
-
-# TypeScript - Responses API with EntraID (keyless)
-cd src/typescript && tsx responses_example_entra.ts
-```
-
-**🔐 Prefer keyless authentication?** See [CLIENT_README.md](CLIENT_README.md) for EntraID setup with Azure Identity.
+**📖 See [CLIENT_README.md](CLIENT_README.md) for detailed setup guide with more examples**
 
 ## What This Template Includes
 
 - **Core Infrastructure**: Azure OpenAI resource with GPT-5-mini deployment
 - **Optimal Configuration**: Sweden Central region, GlobalStandard SKU, v1 API
+- **Secure Authentication**: EntraID (Azure Identity) recommended + API key option
 - **Client Examples**: Python and TypeScript using the new Responses API
-- **Authentication Options**: API key examples + EntraID (Azure Identity) for production
 - **Validation Scripts**: PowerShell and Bash scripts for testing
 - **Complete Documentation**: Setup guides and troubleshooting tips
 

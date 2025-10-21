@@ -14,9 +14,78 @@ The Responses API is the newer, cleaner interface designed specifically for GPT-
 ## Prerequisites
 
 ✅ Azure OpenAI GPT-5-mini deployed (run `azd up` first)  
-✅ Python 3.8+ or Node.js 18+ installed
+✅ Python 3.8+ or Node.js 18+ installed  
+✅ Azure CLI installed and logged in (`az login`)
 
-## Quick Setup
+## 🔐 Recommended: EntraID Authentication (Keyless)
+
+**This is the secure, production-ready approach. No API keys to manage!**
+
+### Step 1: Get Your Deployment Information
+```bash
+# Get your Azure OpenAI endpoint
+azd env get-values | Select-String 'AZURE_OPENAI_ENDPOINT'
+
+# Get your environment name and resource name
+azd env get-values | Select-String 'AZURE_ENV_NAME|AZURE_OPENAI_NAME'
+```
+
+### Step 2: Assign RBAC Role
+```bash
+# Get your user ID
+$userId = az ad signed-in-user show --query id -o tsv
+
+# Get the OpenAI resource ID (replace YOUR_ENV_NAME and YOUR_OPENAI_NAME)
+$resourceId = "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-YOUR_ENV_NAME/providers/Microsoft.CognitiveServices/accounts/YOUR_OPENAI_NAME"
+
+# Assign the role
+az role assignment create --role "Cognitive Services OpenAI User" --assignee $userId --scope $resourceId
+```
+
+### Step 3: Install Dependencies & Run
+
+**Python:**
+```bash
+cd src/python
+pip install -r requirements.txt
+
+# Set your endpoint
+$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
+
+# Run with EntraID
+python responses_example_entra.py
+```
+
+**TypeScript:**
+```bash
+cd src/typescript
+npm install
+
+# Set your endpoint
+$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
+
+# Run with EntraID
+tsx responses_example_entra.ts
+```
+
+**Benefits of EntraID Authentication:**
+- ✅ No API keys to manage or rotate
+- ✅ Uses your Azure CLI login or Managed Identity
+- ✅ Better security with Azure RBAC
+- ✅ Automatic token refresh
+- ✅ Works with service principals and managed identities
+- ✅ Enterprise-grade security compliance
+
+---
+
+## Alternative: API Key Authentication (Quick Start)
+
+**For quick testing and development only. Not recommended for production.**
+
+<details>
+<summary>Click to expand API key setup instructions</summary>
+
+## Quick Setup with API Keys
 
 ### 1. Get Your Deployment Information
 ```bash
@@ -78,10 +147,12 @@ npm start
 
 ### 6. Test the Connection
    ```bash
-   python client_example.py
+   python responses_example.py
    ```
 
-## Expected Output
+</details>
+
+---
 
 ## Example Output
 
@@ -125,6 +196,67 @@ Sweden is distinctive for its blend of social-democratic institutions and strong
 ✅ **No containers** - Direct API calls, no complex setup  
 
 ## Code Examples
+
+### 🔐 EntraID Authentication (Recommended)
+
+**Python - EntraID with Responses API:**
+```python
+from openai import OpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+import os
+
+# Use DefaultAzureCredential for EntraID authentication
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    "https://cognitiveservices.azure.com/.default"
+)
+
+# Initialize OpenAI client with Azure endpoint and EntraID authentication
+client = OpenAI(
+    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
+    api_key=token_provider
+)
+
+# Use the Responses API normally
+response = client.responses.create(
+    model="gpt-5-mini",
+    input="Explain quantum computing in simple terms",
+    max_output_tokens=1000
+)
+print(response.output_text)
+```
+
+**TypeScript - EntraID with Responses API:**
+```typescript
+import OpenAI from "openai";
+import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+
+// Use Azure Identity for authentication
+const credential = new DefaultAzureCredential();
+const scope = "https://cognitiveservices.azure.com/.default";
+const tokenProvider = getBearerTokenProvider(credential, scope);
+
+// Use standard OpenAI client with Azure endpoint and token provider
+const client = new OpenAI({
+    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
+    apiKey: tokenProvider as any
+});
+
+// Use the Responses API normally
+const response = await client.responses.create({
+    model: "gpt-5-mini",
+    input: "Explain quantum computing in simple terms",
+    max_output_tokens: 1000
+});
+console.log(response.output_text);
+```
+
+---
+
+### API Key Authentication (Quick Start)
+
+<details>
+<summary>Click to expand API key code examples</summary>
 
 ### Python - Basic Responses API
 ```python
@@ -300,15 +432,34 @@ const response2 = await client.responses.create({
 console.log(response2.output_text);
 ```
 
+</details>
+
+---
+
 ## Troubleshooting
+
+### EntraID Authentication Issues
+
+**❌ "401 PermissionDenied" with EntraID**  
+→ Assign the "Cognitive Services OpenAI User" role (see setup instructions above)  
+→ Verify you're logged in: `az account show`  
+→ Try logging in again: `az login`
+
+**❌ "DefaultAzureCredential failed to retrieve a token"**  
+→ Ensure Azure CLI is installed and you're logged in: `az login`  
+→ Check you have access to the subscription: `az account list`
+
+### API Key Authentication Issues
 
 **❌ "Missing environment variables"**  
 → Run `azd env get-values` to get your endpoint  
 → Get API key: `az cognitiveservices account keys list --name YOUR_RESOURCE_NAME --resource-group rg-YOUR_ENV_NAME`
 
-**❌ "Invalid request" or 401 errors**  
+**❌ "Invalid request" or 401 errors with API key**  
 → Verify your API key is correct  
 → Check endpoint URL includes trailing slash: `https://openai-xxx.openai.azure.com/`
+
+### General Issues
 
 **❌ "Model not found"**  
 → Ensure deployment completed: `azd env get-values` should show `AZURE_OPENAI_GPT_DEPLOYMENT_NAME=gpt-5-mini`  
@@ -340,96 +491,6 @@ This template uses the **Responses API**, which provides a cleaner interface opt
 - ✅ Cleaner response structure with `output_text` property
 
 **Important:** Use `max_output_tokens=1000` (not 50-200) to account for GPT-5-mini's internal reasoning process. The model uses reasoning tokens internally before generating the final output.
-
-## EntraID Authentication (Recommended for Production)
-
-Instead of using API keys, you can use **Azure Identity (EntraID)** for more secure, keyless authentication:
-
-### Python - EntraID Authentication
-```python
-from openai import OpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-
-# Use Azure Identity for authentication
-token_provider = get_bearer_token_provider(
-    DefaultAzureCredential(),
-    "https://cognitiveservices.azure.com/.default"
-)
-
-# Use standard OpenAI client with Azure endpoint and token provider
-client = OpenAI(
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
-    api_key=token_provider
-)
-
-# Use the Responses API normally
-response = client.responses.create(
-    model="gpt-5-mini",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
-)
-print(response.output_text)
-```
-
-### TypeScript - EntraID Authentication
-```typescript
-import OpenAI from "openai";
-import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
-
-// Use Azure Identity for authentication
-const credential = new DefaultAzureCredential();
-const scope = "https://cognitiveservices.azure.com/.default";
-const tokenProvider = getBearerTokenProvider(credential, scope);
-
-// Use standard OpenAI client with Azure endpoint and token provider
-const client = new OpenAI({
-    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
-    apiKey: tokenProvider as any  // Token provider acts as dynamic API key
-});
-
-// Use the Responses API normally
-const response = await client.responses.create({
-    model: "gpt-5-mini",
-    input: "Explain quantum computing in simple terms",
-    max_output_tokens: 1000
-});
-console.log(response.output_text);
-```
-
-### Run EntraID Examples
-```bash
-# Python
-cd src/python && python responses_example_entra.py
-
-# TypeScript
-cd src/typescript && tsx responses_example_entra.ts
-```
-
-**Benefits of EntraID Authentication:**
-- ✅ No API keys to manage or rotate
-- ✅ Uses your Azure CLI login or Managed Identity
-- ✅ Better security with Azure RBAC
-- ✅ Automatic token refresh
-- ✅ Works with service principals and managed identities
-
-**Setup Requirements:**
-1. Install dependencies: `pip install azure-identity` or `npm install @azure/identity`
-2. Login to Azure: `az login`
-3. Assign the "Cognitive Services OpenAI User" role to yourself:
-   ```bash
-   # Get your Azure AD user ID
-   $userId = az ad signed-in-user show --query id -o tsv
-   
-   # Get the OpenAI resource ID
-   $resourceId = azd env get-values | Select-String 'AZURE_OPENAI_ENDPOINT' | ForEach-Object { 
-       $endpoint = $_ -replace 'AZURE_OPENAI_ENDPOINT="(.*)"', '$1'
-       $name = ($endpoint -split '\.')[0] -replace 'https://', ''
-       az cognitiveservices account show --name $name --resource-group (azd env get-values | Select-String 'AZURE_ENV_NAME' | ForEach-Object { "rg-" + ($_ -replace 'AZURE_ENV_NAME="(.*)"', '$1') }) --query id -o tsv
-   }
-   
-   # Assign the role
-   az role assignment create --role "Cognitive Services OpenAI User" --assignee $userId --scope $resourceId
-   ```
 
 ## Next Steps
 
