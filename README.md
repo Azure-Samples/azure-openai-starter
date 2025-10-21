@@ -38,7 +38,7 @@ That's it! 🚀 You now have **Azure OpenAI** with **GPT-5-mini** model deployed
 
 **Use keyless authentication with Azure Identity - the secure, production-ready approach.**
 
-<details open>
+<details>
 <summary><strong>Click to expand EntraID setup and code examples</strong></summary>
 
 **Setup Steps:**
