@@ -21,57 +21,106 @@ The Responses API is the newer, cleaner interface designed specifically for GPT-
 
 **This is the secure, production-ready approach. No API keys to manage!**
 
-<details open>
-<summary><strong>Click to expand EntraID setup instructions</strong></summary>
+<details>
+<summary><strong>Click to expand EntraID setup and code examples</strong></summary>
 
-### Step 1: Get Your Deployment Information
+### Setup Steps
+
 ```bash
-# Get your Azure OpenAI endpoint
+# 1. Get your Azure OpenAI endpoint
 azd env get-values | Select-String 'AZURE_OPENAI_ENDPOINT'
 
-# Get your environment name and resource name
+# 2. Get your environment name and resource name
 azd env get-values | Select-String 'AZURE_ENV_NAME|AZURE_OPENAI_NAME'
-```
 
-### Step 2: Assign RBAC Role
-```bash
-# Get your user ID
+# 3. Assign RBAC Role - Get your user ID
 $userId = az ad signed-in-user show --query id -o tsv
 
-# Get the OpenAI resource ID (replace YOUR_ENV_NAME and YOUR_OPENAI_NAME)
+# 4. Get the OpenAI resource ID (replace YOUR_ENV_NAME and YOUR_OPENAI_NAME)
 $resourceId = "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-YOUR_ENV_NAME/providers/Microsoft.CognitiveServices/accounts/YOUR_OPENAI_NAME"
 
-# Assign the role
+# 5. Assign the "Cognitive Services OpenAI User" role
 az role assignment create --role "Cognitive Services OpenAI User" --assignee $userId --scope $resourceId
+
+# 6. Set environment variable
+$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
 ```
 
-### Step 3: Install Dependencies & Run
+### Python Setup & Code
 
-**Python:**
 ```bash
+# Install dependencies
 cd src/python
 pip install -r requirements.txt
-
-# Set your endpoint
-$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
 
 # Run with EntraID
 python responses_example_entra.py
 ```
 
-**TypeScript:**
+**Python Code Example:**
+```python
+from openai import OpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+import os
+
+# Use DefaultAzureCredential for EntraID authentication
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    "https://cognitiveservices.azure.com/.default"
+)
+
+# Initialize OpenAI client with Azure endpoint and EntraID
+client = OpenAI(
+    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
+    api_key=token_provider
+)
+
+# Use the Responses API
+response = client.responses.create(
+    model="gpt-5-mini",
+    input="Explain quantum computing in simple terms",
+    max_output_tokens=1000
+)
+print(response.output_text)
+```
+
+### TypeScript Setup & Code
+
 ```bash
+# Install dependencies
 cd src/typescript
 npm install
-
-# Set your endpoint
-$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
 
 # Run with EntraID
 tsx responses_example_entra.ts
 ```
 
-**Benefits of EntraID Authentication:**
+**TypeScript Code Example:**
+```typescript
+import OpenAI from "openai";
+import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+
+// Use Azure Identity for authentication
+const credential = new DefaultAzureCredential();
+const scope = "https://cognitiveservices.azure.com/.default";
+const tokenProvider = getBearerTokenProvider(credential, scope);
+
+// Initialize OpenAI client with Azure endpoint and EntraID
+const client = new OpenAI({
+    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
+    apiKey: tokenProvider as any
+});
+
+// Use the Responses API
+const response = await client.responses.create({
+    model: "gpt-5-mini",
+    input: "Explain quantum computing in simple terms",
+    max_output_tokens: 1000
+});
+console.log(response.output_text);
+```
+
+**Why EntraID?**
 - ✅ No API keys to manage or rotate
 - ✅ Uses your Azure CLI login or Managed Identity
 - ✅ Better security with Azure RBAC
@@ -88,72 +137,80 @@ tsx responses_example_entra.ts
 **For quick testing and development only. Not recommended for production.**
 
 <details>
-<summary>Click to expand API key setup instructions</summary>
+<summary><strong>Click to expand API key setup and code examples</strong></summary>
 
-## Quick Setup with API Keys
+### Setup Steps
 
-### 1. Get Your Deployment Information
 ```bash
-# Get all deployment details
+# 1. Get all deployment details
 azd env get-values
 
-# Note these key values:
-# AZURE_ENV_NAME=XXXXXX
-# AZURE_OPENAI_ENDPOINT=https://openai-XXXXXX.openai.azure.com/
-# AZURE_OPENAI_NAME=openai-XXXXXX  
-# AZURE_OPENAI_GPT_DEPLOYMENT_NAME=gpt-5-mini
-```
-
-### 2. Get Your API Key
-```bash
-# Use env values from step 1
+# 2. Get your API key (use values from step 1)
 az cognitiveservices account keys list --name AZURE_OPENAI_NAME --resource-group rg-AZURE_ENV_NAME
-# Copy key1 or key2 from the output
-```
-**Don't have Azure CLI?** Install it: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
 
-## Python Client
-
-### 3a. Install Dependencies & Run (Python)
-```bash
-# Navigate to Python example
-cd src/python
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Set your credentials (replace with your actual values)
+# 3. Set environment variables
 $env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
 $env:AZURE_OPENAI_API_KEY="your-api-key-here"
+```
 
-# Run the example
+**Don't have Azure CLI?** Install it: https://learn.microsoft.com/cli/azure/install-azure-cli
+
+### Python Setup & Code
+
+```bash
+# Install dependencies
+cd src/python
+pip install -r requirements.txt
+
+# Run with API key
 python responses_example.py
 ```
 
-## TypeScript/Node.js Client
+**Python Code Example:**
+```python
+from openai import OpenAI
+import os
 
-### 3b. Install Dependencies & Run (TypeScript/Node.js)  
-```bash
-# Navigate to TypeScript example
-cd src/typescript
+client = OpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/"
+)
 
-# Install dependencies
-npm run install-deps
-# or manually: npm install openai tsx typescript @types/node
-
-# Set your credentials (replace with your actual values)
-$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
-$env:AZURE_OPENAI_API_KEY="your-api-key-here"
-
-# Run the example
-npm start
-# or: npx tsx responses_example.ts
+response = client.responses.create(
+    model="gpt-5-mini",
+    input="Explain quantum computing in simple terms",
+    max_output_tokens=1000
+)
+print(response.output_text)
 ```
 
-### 6. Test the Connection
-   ```bash
-   python responses_example.py
-   ```
+### TypeScript Setup & Code
+
+```bash
+# Install dependencies
+cd src/typescript
+npm install
+
+# Run with API key
+npm start
+```
+
+**TypeScript Code Example:**
+```typescript
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`
+});
+
+const response = await client.responses.create({
+    model: "gpt-5-mini",
+    input: "Explain quantum computing in simple terms",
+    max_output_tokens: 1000
+});
+console.log(response.output_text);
+```
 
 </details>
 
@@ -201,6 +258,9 @@ Sweden is distinctive for its blend of social-democratic institutions and strong
 ✅ **No containers** - Direct API calls, no complex setup  
 
 ## Code Examples
+
+<details>
+<summary><strong>Click to expand additional code examples</strong></summary>
 
 ### 🔐 EntraID Authentication (Recommended)
 
