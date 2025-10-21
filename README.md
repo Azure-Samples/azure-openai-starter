@@ -49,7 +49,7 @@ azd env get-values
 # Copy and paste the 2 azd env values from above, then run:
 az cognitiveservices account keys list --name YOUR_RESOURCE_NAME --resource-group rg-YOUR_ENV_NAME
 ```
-**Don't have Azure CLI?** Install it: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
+**Don't have az?** Install it: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
 
 ### 3. Start Using GPT-5-mini
 
