@@ -17,12 +17,12 @@ The Responses API is the newer, cleaner interface designed specifically for GPT-
 ✅ Python 3.8+ or Node.js 18+ installed  
 ✅ Azure CLI installed and logged in (`az login`)
 
-## 🔐 Recommended: EntraID Authentication (Keyless)
+## 🔐 Recommended: Keyless Authentication (Production Ready)
 
 **This is the secure, production-ready approach. No API keys to manage!**
 
 <details>
-<summary><strong>Click to expand EntraID setup and code examples</strong></summary>
+<summary><strong>Click to expand Keyless setup and code examples</strong></summary>
 
 ### Setup Steps
 
