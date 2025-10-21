@@ -1,4 +1,4 @@
-# Azure OpenAI GPT-5-mini Client Examples
+# Azure OpenAI Starter Python and TypeScript Examples
 
 Complete guide to using your deployed Azure OpenAI GPT-5-mini model with the **Responses API** in **Python** and **TypeScript/Node.js**.
 
