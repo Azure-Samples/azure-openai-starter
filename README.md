@@ -17,6 +17,10 @@ description: Deploy Azure OpenAI with GPT-5-mini using one CLI command. Includes
 
 Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single CLI command. Includes OpenAI SDK for Python and TypeScript examples using the  Responses API. 
 
+## Prerequisites
+✅ [Azure Subscription](https://azure.microsoft.com/en-us/pricing/purchase-options/azure-account)  
+✅ [Azure Developer CLI](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)
+
 ## Quick Start
 
 ```bash
@@ -26,8 +30,6 @@ azd auth login
 # 2. Deploy GPT-5-mini to Azure OpenAI in Sweden Central 
 azd up
 ```
-**Don't have azd?** Install it: https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd
-
 That's it! 🚀 You now have **Azure OpenAI** with **GPT-5-mini** model deployed and ready to use!
 
 ## Next Steps
@@ -49,7 +51,6 @@ azd env get-values
 # Copy and paste the 2 azd env values from above, then run:
 az cognitiveservices account keys list --name YOUR_RESOURCE_NAME --resource-group rg-YOUR_ENV_NAME
 ```
-**Don't have az?** Install it: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli
 
 ### 3. Start Using GPT-5-mini
 
