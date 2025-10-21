@@ -94,18 +94,27 @@ console.log(response.outputText);
 
 **Or run the included examples:**
 ```bash
-# Python - Responses API
+# Python - Responses API with API Key
 cd src/python && python responses_example.py
 
-# TypeScript - Responses API
+# Python - Responses API with EntraID (keyless)
+cd src/python && python responses_example_entra.py
+
+# TypeScript - Responses API with API Key
 cd src/typescript && npm start
+
+# TypeScript - Responses API with EntraID (keyless)
+cd src/typescript && tsx responses_example_entra.ts
 ```
+
+**🔐 Prefer keyless authentication?** See [CLIENT_README.md](CLIENT_README.md) for EntraID setup with Azure Identity.
 
 ## What This Template Includes
 
 - **Core Infrastructure**: Azure OpenAI resource with GPT-5-mini deployment
 - **Optimal Configuration**: Sweden Central region, GlobalStandard SKU, v1 API
 - **Client Examples**: Python and TypeScript using the new Responses API
+- **Authentication Options**: API key examples + EntraID (Azure Identity) for production
 - **Validation Scripts**: PowerShell and Bash scripts for testing
 - **Complete Documentation**: Setup guides and troubleshooting tips
 
@@ -116,6 +125,7 @@ cd src/typescript && npm start
 ✅ **New v1 API** support - Future-proof, no version management needed  
 ✅ **Automatic deployment** - Model ready to use immediately  
 ✅ **Multi-language examples** - Python and TypeScript/Node.js clients  
+✅ **Two authentication methods** - API keys (quick start) + EntraID (production-ready)  
 ✅ **Unique resource naming** - No conflicts with existing resources  
 
 
@@ -129,12 +139,14 @@ cd src/typescript && npm start
 │   └── resources.bicep        # Azure OpenAI resource definition
 ├── src/
 │   ├── python/
-│   │   ├── responses_example.py  # Python Responses API example
-│   │   └── requirements.txt      # Python dependencies
+│   │   ├── responses_example.py         # API key authentication
+│   │   ├── responses_example_entra.py   # EntraID authentication
+│   │   └── requirements.txt             # Python dependencies
 │   └── typescript/
-│       ├── responses_example.ts  # TypeScript Responses API example
-│       ├── package.json          # Node.js dependencies
-│       └── tsconfig.json         # TypeScript configuration
+│       ├── responses_example.ts         # API key authentication
+│       ├── responses_example_entra.ts   # EntraID authentication
+│       ├── package.json                 # Node.js dependencies
+│       └── tsconfig.json                # TypeScript configuration
 ├── CLIENT_README.md           # Detailed setup guide (Python & TypeScript)
 ├── validate.ps1              # PowerShell validation script
 └── validate.sh               # Bash validation script
@@ -196,8 +208,9 @@ gptModelName: 'gpt-5'           // Needs approval
 ✅ **Minimal setup** - 2 commands instead of 20+  
 ✅ **Latest model** - GPT-5-mini with reasoning capabilities  
 ✅ **Future-proof** - Uses new v1 API, no version management  
-✅ **Production-ready** - GlobalStandard SKU, proper resource naming  
-✅ **Complete examples** - Python client with error handling  
+✅ **Production-ready** - GlobalStandard SKU, EntraID auth, proper naming  
+✅ **Complete examples** - Python & TypeScript with error handling  
+✅ **Secure by default** - Supports keyless authentication with Azure Identity  
 ✅ **Easy cleanup** - Remove everything with `azd down`  
 
 ---

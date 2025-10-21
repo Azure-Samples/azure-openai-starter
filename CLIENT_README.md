@@ -1,6 +1,6 @@
 # Azure OpenAI Starter Python and TypeScript Examples
 
-Complete guide to using your deployed Azure OpenAI GPT-5-mini model with the **Responses API** in **Python** and **TypeScript/Node.js**.
+Complete guide to using your deployed Azure OpenAI **GPT-5-mini** model with the **Responses API** in **Python** and **TypeScript/Node.js**.
 
 ## About the Responses API
 
@@ -340,6 +340,96 @@ This template uses the **Responses API**, which provides a cleaner interface opt
 - ✅ Cleaner response structure with `output_text` property
 
 **Important:** Use `max_output_tokens=1000` (not 50-200) to account for GPT-5-mini's internal reasoning process. The model uses reasoning tokens internally before generating the final output.
+
+## EntraID Authentication (Recommended for Production)
+
+Instead of using API keys, you can use **Azure Identity (EntraID)** for more secure, keyless authentication:
+
+### Python - EntraID Authentication
+```python
+from openai import OpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+
+# Use Azure Identity for authentication
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    "https://cognitiveservices.azure.com/.default"
+)
+
+# Use standard OpenAI client with Azure endpoint and token provider
+client = OpenAI(
+    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
+    api_key=token_provider
+)
+
+# Use the Responses API normally
+response = client.responses.create(
+    model="gpt-5-mini",
+    input="Explain quantum computing in simple terms",
+    max_output_tokens=1000
+)
+print(response.output_text)
+```
+
+### TypeScript - EntraID Authentication
+```typescript
+import OpenAI from "openai";
+import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+
+// Use Azure Identity for authentication
+const credential = new DefaultAzureCredential();
+const scope = "https://cognitiveservices.azure.com/.default";
+const tokenProvider = getBearerTokenProvider(credential, scope);
+
+// Use standard OpenAI client with Azure endpoint and token provider
+const client = new OpenAI({
+    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
+    apiKey: tokenProvider as any  // Token provider acts as dynamic API key
+});
+
+// Use the Responses API normally
+const response = await client.responses.create({
+    model: "gpt-5-mini",
+    input: "Explain quantum computing in simple terms",
+    max_output_tokens: 1000
+});
+console.log(response.output_text);
+```
+
+### Run EntraID Examples
+```bash
+# Python
+cd src/python && python responses_example_entra.py
+
+# TypeScript
+cd src/typescript && tsx responses_example_entra.ts
+```
+
+**Benefits of EntraID Authentication:**
+- ✅ No API keys to manage or rotate
+- ✅ Uses your Azure CLI login or Managed Identity
+- ✅ Better security with Azure RBAC
+- ✅ Automatic token refresh
+- ✅ Works with service principals and managed identities
+
+**Setup Requirements:**
+1. Install dependencies: `pip install azure-identity` or `npm install @azure/identity`
+2. Login to Azure: `az login`
+3. Assign the "Cognitive Services OpenAI User" role to yourself:
+   ```bash
+   # Get your Azure AD user ID
+   $userId = az ad signed-in-user show --query id -o tsv
+   
+   # Get the OpenAI resource ID
+   $resourceId = azd env get-values | Select-String 'AZURE_OPENAI_ENDPOINT' | ForEach-Object { 
+       $endpoint = $_ -replace 'AZURE_OPENAI_ENDPOINT="(.*)"', '$1'
+       $name = ($endpoint -split '\.')[0] -replace 'https://', ''
+       az cognitiveservices account show --name $name --resource-group (azd env get-values | Select-String 'AZURE_ENV_NAME' | ForEach-Object { "rg-" + ($_ -replace 'AZURE_ENV_NAME="(.*)"', '$1') }) --query id -o tsv
+   }
+   
+   # Assign the role
+   az role assignment create --role "Cognitive Services OpenAI User" --assignee $userId --scope $resourceId
+   ```
 
 ## Next Steps
 

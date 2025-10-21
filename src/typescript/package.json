@@ -13,7 +13,8 @@
   "author": "Azure Developer CLI Template",
   "license": "MIT",
   "dependencies": {
-    "openai": "^4.67.1"
+    "openai": "^4.67.1",
+    "@azure/identity": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
