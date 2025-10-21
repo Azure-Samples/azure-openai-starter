@@ -34,12 +34,12 @@ That's it! 🚀 You now have **Azure OpenAI** with **GPT-5-mini** model deployed
 
 ## Next Steps
 
-### Option A: EntraID Authentication (Recommended) 🔐
+### Option A: Keyless Authentication (Recommended) 🔐
 
 **Use keyless authentication with Azure Identity - the secure, production-ready approach.**
 
 <details>
-<summary><strong>Click to expand EntraID setup and code examples</strong></summary>
+<summary><strong>Click to expand Keyless setup and code examples</strong></summary>
 
 **Setup Steps:**
 ```bash
@@ -106,7 +106,8 @@ const response = await client.responses.create({
 console.log(response.output_text);
 ```
 
-**Why EntraID?**
+**Why Keyless?**
+
 ✅ No API keys to manage or rotate  
 ✅ Better security with Azure RBAC  
 ✅ Works with your Azure login  
