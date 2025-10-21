@@ -21,6 +21,9 @@ The Responses API is the newer, cleaner interface designed specifically for GPT-
 
 **This is the secure, production-ready approach. No API keys to manage!**
 
+<details open>
+<summary><strong>Click to expand EntraID setup instructions</strong></summary>
+
 ### Step 1: Get Your Deployment Information
 ```bash
 # Get your Azure OpenAI endpoint
@@ -75,6 +78,8 @@ tsx responses_example_entra.ts
 - ✅ Automatic token refresh
 - ✅ Works with service principals and managed identities
 - ✅ Enterprise-grade security compliance
+
+</details>
 
 ---
 
