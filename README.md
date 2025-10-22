@@ -27,7 +27,7 @@ Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single C
 ## Prerequisites
 ✅ [Azure Subscription](https://azure.microsoft.com/en-us/pricing/purchase-options/azure-account)  
 ✅ [Azure Developer CLI](https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd)  
-✅ [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli) - Required for authentication and resource management
+✅ [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli)
 
 ## Quick Start
 
