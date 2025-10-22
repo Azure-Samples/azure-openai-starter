@@ -1,3 +1,4 @@
+<!--
 ---
 page_type: sample
 languages:
@@ -10,7 +11,7 @@ urlFragment: azure-openai-starter
 name: The Azure OpenAI Starter Kit
 description: Deploy Azure OpenAI with GPT-5-mini using one CLI command. Includes OpenAI SDK for Python and TypeScript examples using the Responses API.
 ---
-
+-->
 # The Azure OpenAI Starter Kit
 
 **The fastest way to get started with Azure OpenAI.** 
