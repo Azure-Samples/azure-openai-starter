@@ -3,7 +3,7 @@
 This workspace contains a minimal Azure Developer CLI (azd) template for deploying GPT-5-mini on Azure OpenAI.
 
 ## ✅ Completed Template Features:
-- **One-command deployment**: `azd up` deploys GPT-5-mini in Sweden Central
+- **One-command deployment**: `azd up` deploys GPT-5-mini in your chosen region
 - **GPT-5-mini (2025-08-07)**: Latest reasoning model, no registration required
 - **New v1 API support**: Future-proof, no version management needed
 - **GlobalStandard SKU**: Optimal performance and availability
@@ -16,7 +16,7 @@ This workspace contains a minimal Azure Developer CLI (azd) template for deployi
 ├── azure.yaml                 # azd configuration
 ├── infra/
 │   ├── main.bicep             # Main deployment (subscription scope)
-│   ├── main.parameters.json   # Parameters (Sweden Central default)
+│   ├── main.parameters.json   # Deployment parameters
 │   └── resources.bicep        # Azure OpenAI + GPT-5-mini deployment
 ├── src/
 │   ├── python/
@@ -33,7 +33,7 @@ This workspace contains a minimal Azure Developer CLI (azd) template for deployi
 ```
 
 ## Key Configuration:
-- **Region**: Sweden Central (swedencentral) - optimal for European users
+- **Region**: User-selected during deployment - choose your optimal region
 - **Model**: GPT-5-mini (2025-08-07) with GlobalStandard SKU
 - **API**: New v1 endpoint format for future compatibility
 - **Deployment name**: `gpt-5-mini` (descriptive naming)

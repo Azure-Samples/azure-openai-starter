@@ -27,7 +27,7 @@ Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single C
 # 1. Login to Azure
 azd auth login
 
-# 2. Deploy GPT-5-mini to Azure OpenAI in Sweden Central 
+# 2. Deploy GPT-5-mini to Azure OpenAI 
 azd up
 ```
 That's it! 🚀 You now have **Azure OpenAI** with **GPT-5-mini** model deployed and ready to use!
@@ -185,7 +185,7 @@ console.log(response.output_text);
 ## What This Template Includes
 
 - **Core Infrastructure**: Azure OpenAI resource with GPT-5-mini deployment
-- **Optimal Configuration**: Sweden Central region, GlobalStandard SKU, v1 API
+- **Optimal Configuration**: Flexible region selection, GlobalStandard SKU, v1 API
 - **Secure Authentication**: EntraID (Azure Identity) recommended + API key option
 - **Client Examples**: Python and TypeScript using the new Responses API
 - **Validation Scripts**: PowerShell and Bash scripts for testing
@@ -194,7 +194,7 @@ console.log(response.output_text);
 ## What You Get
 
 ✅ **GPT-5-mini (2025-08-07)** - Latest reasoning model, no registration required  
-✅ **Sweden Central** deployment - Optimal European region   
+✅ **Flexible region** deployment - Choose your optimal region   
 ✅ **New v1 API** support - Future-proof, no version management needed  
 ✅ **Automatic deployment** - Model ready to use immediately  
 ✅ **Multi-language examples** - Python and TypeScript/Node.js clients  
@@ -208,7 +208,7 @@ console.log(response.output_text);
 ├── azure.yaml                 # azd configuration
 ├── infra/
 │   ├── main.bicep             # Main deployment template
-│   ├── main.parameters.json   # Deployment parameters (Sweden Central)
+│   ├── main.parameters.json   # Deployment parameters
 │   └── resources.bicep        # Azure OpenAI resource definition
 ├── src/
 │   ├── python/

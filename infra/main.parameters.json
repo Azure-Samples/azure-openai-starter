@@ -4,9 +4,6 @@
   "parameters": {
     "environmentName": {
       "value": "${AZURE_ENV_NAME}"
-    },
-    "location": {
-      "value": "swedencentral"
     }
   }
 }

@@ -1,5 +1,5 @@
 // Minimal Azure OpenAI resource deployment for Azure Developer CLI
-targetScope = 'subscription'
+targetScope = 'resourceGroup'
 
 @description('Environment name for tagging')
 @minLength(1)
@@ -7,24 +7,14 @@ targetScope = 'subscription'
 param environmentName string
 
 @description('Primary location for all resources')
-param location string
+param location string = resourceGroup().location
 
 @description('Unique token for resource naming')
 param resourceToken string = toLower(uniqueString(subscription().id, environmentName, location))
 
-// Resource group
-resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
-  name: 'rg-${environmentName}'
-  location: location
-  tags: {
-    'azd-env-name': environmentName
-  }
-}
-
 // Deploy the Azure OpenAI resource
 module openai 'resources.bicep' = {
   name: 'openai'
-  scope: rg
   params: {
     location: location
     resourceToken: resourceToken

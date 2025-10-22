@@ -226,7 +226,7 @@ When you run either example, you should see:
 ------------------------------------------------------------
 ✅ Success! GPT-5-mini response:
 --------------------------------------------------
-Hello! I'm GPT-5-mini running on Microsoft Azure in Sweden Central. 
+Hello! I'm GPT-5-mini running on Microsoft Azure. 
 
 Something interesting about Sweden: Sweden has a unique concept called "allemansrätten" (the Right to Roam), which gives everyone the legal right to access and enjoy nature freely - you can walk, camp, pick berries, and mushrooms almost anywhere in the country, as long as you don't disturb wildlife or private property. This reflects Sweden's deep cultural connection to nature and trust-based society.
 --------------------------------------------------
@@ -252,7 +252,7 @@ Sweden is distinctive for its blend of social-democratic institutions and strong
 
 ✅ **GPT-5-mini (2025-08-07)** - Latest reasoning model from OpenAI  
 ✅ **New v1 API** - No api-version needed, future-proof  
-✅ **Sweden Central** deployment - Optimal European region  
+✅ **Flexible region** deployment - Choose your optimal region  
 ✅ **Standard OpenAI client** - Works with Python and TypeScript  
 ✅ **Minimal dependencies** - Just one package install  
 ✅ **No containers** - Direct API calls, no complex setup  
