@@ -6,26 +6,18 @@
 import OpenAI from "openai";
 
 function checkEnvironment(): void {
-    const requiredVars = ["AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_API_KEY"];
-    const missing = requiredVars.filter(varName => !process.env[varName]);
+    const missing = [];
+    if (!process.env.AZURE_OPENAI_ENDPOINT) missing.push("AZURE_OPENAI_ENDPOINT");
+    if (!process.env.AZURE_OPENAI_API_KEY) missing.push("AZURE_OPENAI_API_KEY");
     
     if (missing.length > 0) {
-        console.error(`❌ Missing environment variables: ${missing.join(", ")}`);
-        console.error("\nRun these commands to set them:");
-        console.error("$endpoint = azd env get-values | Select-String 'AZURE_OPENAI_ENDPOINT' | ForEach-Object { $_ -replace 'AZURE_OPENAI_ENDPOINT=\"(.*)\"', '$1' }");
-        console.error("$apiKey = az cognitiveservices account keys list --name RESOURCE_NAME --resource-group RESOURCE_GROUP --query key1 -o tsv");
-        console.error("$env:AZURE_OPENAI_ENDPOINT = $endpoint");
-        console.error("$env:AZURE_OPENAI_API_KEY = $apiKey");
+        console.error(`Missing environment variables: ${missing.join(", ")}`);
         process.exit(1);
     }
-    
-    console.log("✅ Environment variables configured");
 }
 
 async function main(): Promise<void> {
-    console.log("=".repeat(60));
-    console.log("Azure OpenAI GPT-5-mini - Responses API Examples");
-    console.log("=".repeat(60));
+    console.log("Azure OpenAI GPT-5-mini - Responses API\n");
     
     checkEnvironment();
     
@@ -39,8 +31,7 @@ async function main(): Promise<void> {
     });
     
     // Example 1: Simple text input
-    console.log("\n📝 Example 1: Simple text input");
-    console.log("-".repeat(60));
+    console.log("Example 1: Simple text input\n");
     const response1 = await client.responses.create({
         model: "gpt-5-mini",
         input: "Explain quantum computing in simple terms",
@@ -49,11 +40,10 @@ async function main(): Promise<void> {
     console.log(`Response: ${response1.output_text}`);
     console.log(`Status: ${response1.status}`);
     console.log(`Reasoning tokens: ${response1.usage?.output_tokens_details?.reasoning_tokens}`);
-    console.log(`Output tokens: ${response1.usage?.output_tokens}`);
+    console.log(`Output tokens: ${response1.usage?.output_tokens}\n`);
     
     // Example 2: Conversation format
-    console.log("\n📝 Example 2: Conversation format");
-    console.log("-".repeat(60));
+    console.log("Example 2: Conversation format\n");
     const response2 = await client.responses.create({
         model: "gpt-5-mini",
         input: [
@@ -66,13 +56,9 @@ async function main(): Promise<void> {
     console.log(`Status: ${response2.status}`);
     console.log(`Reasoning tokens: ${response2.usage?.output_tokens_details?.reasoning_tokens}`);
     console.log(`Output tokens: ${response2.usage?.output_tokens}`);
-    
-    console.log("\n" + "=".repeat(60));
-    console.log("✅ All examples completed successfully!");
-    console.log("=".repeat(60));
 }
 
 main().catch((error) => {
-    console.error("❌ Error:", error.message);
+    console.error("Error:", error.message);
     process.exit(1);
 });
