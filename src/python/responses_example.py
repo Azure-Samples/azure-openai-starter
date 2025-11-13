@@ -38,7 +38,7 @@ def main():
     # Initialize OpenAI client with Azure endpoint
     client = OpenAI(
         api_key=api_key,
-        base_url=f"{endpoint}openai/v1/"
+        base_url=endpoint
     )
     
     # Example 1: Simple text input

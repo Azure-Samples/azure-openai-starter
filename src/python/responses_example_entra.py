@@ -37,7 +37,7 @@ def main():
     
     # Initialize OpenAI client with Azure endpoint and EntraID authentication
     client = OpenAI(
-        base_url=f"{endpoint}openai/v1/",
+        base_url=endpoint,
         api_key=token_provider
     )
     
