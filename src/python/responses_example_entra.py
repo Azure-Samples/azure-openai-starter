@@ -7,7 +7,7 @@ This demonstrates using Azure Identity (EntraID) instead of API keys.
 import os
 import sys
 
-from azure.identity import DefaultAzureCredential
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -31,13 +31,14 @@ def main():
     
     # Use DefaultAzureCredential for EntraID authentication
     # This automatically uses your Azure CLI login, Managed Identity, or other credential sources
-    credential = DefaultAzureCredential()
-    token = credential.get_token("https://cognitiveservices.azure.com/.default")
+    token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+    )
     
     # Initialize OpenAI client with Azure endpoint and EntraID authentication
     client = OpenAI(
         base_url=f"{endpoint}openai/v1/",
-        api_key=token.token
+        api_key=token_provider
     )
     
     # Example 1: Simple text input with Responses API
