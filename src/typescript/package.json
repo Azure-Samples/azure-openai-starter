@@ -5,16 +5,16 @@
   "main": "responses_example.js",
   "scripts": {
     "start": "tsx responses_example.ts",
-    "build": "tsc responses_example.ts",
-    "dev": "tsx watch responses_example.ts",
-    "install-deps": "npm install openai tsx typescript @types/node"
+    "build": "tsc",
+    "dev": "tsx watch responses_example.ts"
   },
   "keywords": ["azure", "openai", "gpt-5-mini", "typescript", "azd"],
   "author": "Azure Developer CLI Template",
   "license": "MIT",
   "dependencies": {
-    "openai": "^4.67.1",
-    "@azure/identity": "^4.0.0"
+    "@azure/identity": "^4.0.0",
+    "dotenv": "^17.2.3",
+    "openai": "^4.67.1"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
@@ -22,6 +22,6 @@
     "typescript": "^5.6.2"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=24.0.0"
   }
 }

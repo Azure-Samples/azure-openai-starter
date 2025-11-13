@@ -3,6 +3,7 @@
  * This demonstrates the new Responses API with GPT-5-mini reasoning model.
  */
 
+import "dotenv/config";
 import OpenAI from "openai";
 
 function checkEnvironment(): void {
@@ -27,7 +28,7 @@ async function main(): Promise<void> {
     // Initialize OpenAI client with Azure endpoint
     const client = new OpenAI({
         apiKey: apiKey,
-        baseURL: `${endpoint}openai/v1/`
+        baseURL: `${endpoint}/openai/v1/`
     });
     
     // Example 1: Simple text input
