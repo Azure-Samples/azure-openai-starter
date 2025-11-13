@@ -6,8 +6,12 @@ This demonstrates using Azure Identity (EntraID) instead of API keys.
 
 import os
 import sys
-from openai import OpenAI
+
 from azure.identity import DefaultAzureCredential
+from dotenv import load_dotenv
+from openai import OpenAI
+
+load_dotenv()
 
 
 def check_environment():

@@ -6,7 +6,11 @@ This demonstrates the new Responses API with GPT-5-mini reasoning model.
 
 import os
 import sys
+
+from dotenv import load_dotenv
 from openai import OpenAI
+
+load_dotenv()
 
 
 def check_environment():
