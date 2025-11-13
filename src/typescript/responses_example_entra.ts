@@ -1,5 +1,6 @@
+import "dotenv/config";
 import OpenAI from "openai";
-import { DefaultAzureCredential } from "@azure/identity";
+import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 
 /**
  * Azure OpenAI GPT-5-mini - Responses API with EntraID Authentication
@@ -24,14 +25,15 @@ async function main(): Promise<void> {
     // This automatically uses your Azure CLI login, Managed Identity, or other credential sources
     const credential = new DefaultAzureCredential();
     const scope = "https://cognitiveservices.azure.com/.default";
-    
+    const tokenProvider = getBearerTokenProvider(credential, scope);
+
     // Get a fresh token directly
     const tokenResponse = await credential.getToken(scope);
     
     // Initialize OpenAI client with Azure endpoint and the token
     const client = new OpenAI({
-        baseURL: `${endpoint}openai/v1/`,
-        apiKey: tokenResponse.token
+        baseURL: `${endpoint}/openai/v1/`,
+        apiKey: await tokenProvider()
     });
     
     // Example 1: Simple text input with Responses API

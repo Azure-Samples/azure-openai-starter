@@ -108,7 +108,7 @@ const tokenProvider = getBearerTokenProvider(credential, scope);
 // Initialize OpenAI client with Azure endpoint and EntraID
 const client = new OpenAI({
     baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
-    apiKey: tokenProvider as any
+    apiKey:  await tokenProvider()
 });
 
 // Use the Responses API
