@@ -4,25 +4,26 @@ page_type: sample
 languages:
 - python
 - typescript
+- go
 products:
 - azure-openai
 - azure
 urlFragment: azure-openai-starter
 name: The Azure OpenAI Starter Kit
-description: Deploy Azure OpenAI with GPT-5-mini using one CLI command. Includes OpenAI SDK for Python and TypeScript examples using the Responses API.
+description: Deploy Azure OpenAI with GPT-5-mini using one CLI command. Includes OpenAI SDK for Python, TypeScript and Go examples using the Responses API.
 ---
 -->
 # The Azure OpenAI Starter Kit
 
 **The fastest way to get started with Azure OpenAI.** 
 
-Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single CLI command. Includes OpenAI SDK for Python and TypeScript examples using the  Responses API. 
+Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single CLI command. Includes OpenAI SDK for Python, TypeScript and Go examples using the Responses API. 
 
 ## Architecture Overview
 
 ![Azure OpenAI Starter Kit Architecture](./images/aoaistarter.png)
 
-*The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for both Python and TypeScript, featuring secure EntraID authentication and the new Responses API optimized for GPT-5-mini.*
+*The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for Python, TypeScript and Go, featuring secure EntraID authentication and the new Responses API optimized for GPT-5-mini.*
 
 ## Prerequisites
 ✅ [Azure Subscription](https://azure.microsoft.com/en-us/pricing/purchase-options/azure-account)  
@@ -66,6 +67,8 @@ az role assignment create --role "Cognitive Services OpenAI User" --assignee $us
 cd src/python && python responses_example_entra.py
 # or
 cd src/typescript && tsx responses_example_entra.ts
+# or
+cd src/go && go run .
 ```
 
 **Python Code:**
@@ -114,6 +117,39 @@ const response = await client.responses.create({
 console.log(response.output_text);
 ```
 
+**Go Code:**
+```go
+import (
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/azure"
+	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/responses"
+)
+
+cred, err := azidentity.NewDefaultAzureCredential(nil)
+
+if err != nil {
+    log.Fatalf("Failed to create DefaultAzureCredential: %s", err)
+}
+
+const scope = "https://cognitiveservices.azure.com/.default"
+
+// Initialize OpenAI client with Azure endpoint and the token
+client := openai.NewClient(
+    option.WithBaseURL(endpoint+"/openai/v1/"),
+    azure.WithTokenCredential(cred, azure.WithTokenCredentialScopes([]string{scope})),
+)
+
+resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
+    Model: "gpt-5-mini",
+    Input: responses.ResponseNewParamsInputUnion{
+        OfString: openai.String("Explain quantum computing in simple terms"),
+    },
+    MaxOutputTokens: openai.Int(1000),
+})
+```
+
 **Why Keyless?**
 
 ✅ No API keys to manage or rotate  
@@ -148,6 +184,8 @@ $env:AZURE_OPENAI_API_KEY="YOUR_API_KEY"
 cd src/python && python responses_example.py
 # or
 cd src/typescript && npm start
+# or
+cd src/go && go run .
 ```
 
 **Python Code:**
@@ -184,6 +222,30 @@ const response = await client.responses.create({
 console.log(response.output_text);
 ```
 
+**Go Code:**
+```go
+import (
+	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/openai/openai-go/v3"
+	"github.com/openai/openai-go/v3/azure"
+	"github.com/openai/openai-go/v3/option"
+	"github.com/openai/openai-go/v3/responses"
+)
+
+client := openai.NewClient(
+    option.WithBaseURL(endpoint+"/openai/v1/"),
+    option.WithAPIKey(apiKey),
+)
+
+resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
+    Model: "gpt-5-mini",
+    Input: responses.ResponseNewParamsInputUnion{
+        OfString: openai.String("Explain quantum computing in simple terms"),
+    },
+    MaxOutputTokens: openai.Int(1000),
+})
+```
+
 </details>
 
 ---
@@ -195,7 +257,7 @@ console.log(response.output_text);
 - **Core Infrastructure**: Azure OpenAI resource with GPT-5-mini deployment
 - **Optimal Configuration**: Flexible region selection, GlobalStandard SKU, v1 API
 - **Secure Authentication**: EntraID (Azure Identity) recommended + API key option
-- **Client Examples**: Python and TypeScript using the new Responses API
+- **Client Examples**: Python, TypeScript and Go using the new Responses API
 - **Validation Scripts**: PowerShell and Bash scripts for testing
 - **Complete Documentation**: Setup guides and troubleshooting tips
 
@@ -205,7 +267,7 @@ console.log(response.output_text);
 ✅ **Flexible region** deployment - Choose your optimal region   
 ✅ **New v1 API** support - Future-proof, no version management needed  
 ✅ **Automatic deployment** - Model ready to use immediately  
-✅ **Multi-language examples** - Python and TypeScript/Node.js clients  
+✅ **Multi-language examples** - Python, TypeScript/Node.js and Go clients  
 ✅ **Two authentication methods** - API keys (quick start) + EntraID (production-ready)  
 ✅ **Unique resource naming** - No conflicts with existing resources  
 
@@ -219,6 +281,10 @@ console.log(response.output_text);
 │   ├── main.parameters.json   # Deployment parameters
 │   └── resources.bicep        # Azure OpenAI resource definition
 ├── src/
+│   ├── go/
+│   │   ├── main.go                      # EntraID and API key authentication
+│   │   ├── go.mod                       # Go module dependencies
+│   │   ├── go.sum                       # Go dependency checksums
 │   ├── python/
 │   │   ├── responses_example.py         # API key authentication
 │   │   ├── responses_example_entra.py   # EntraID authentication
@@ -290,7 +356,7 @@ gptModelName: 'gpt-5'           // Needs approval
 ✅ **Latest model** - GPT-5-mini with reasoning capabilities  
 ✅ **Future-proof** - Uses new v1 API, no version management  
 ✅ **Production-ready** - GlobalStandard SKU, EntraID auth, proper naming  
-✅ **Complete examples** - Python & TypeScript with error handling  
+✅ **Complete examples** - Python, TypeScript and Go with error handling  
 ✅ **Secure by default** - Supports keyless authentication with Azure Identity  
 ✅ **Easy cleanup** - Remove everything with `azd down`  
 
