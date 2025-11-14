@@ -6,35 +6,25 @@ This demonstrates the new Responses API with GPT-5-mini reasoning model.
 
 import os
 import sys
+
+from dotenv import load_dotenv
 from openai import OpenAI
 
-
-def check_environment():
-    """Verify required environment variables are set."""
-    missing = []
-    if not os.getenv("AZURE_OPENAI_ENDPOINT"):
-        missing.append("AZURE_OPENAI_ENDPOINT")
-    if not os.getenv("AZURE_OPENAI_API_KEY"):
-        missing.append("AZURE_OPENAI_API_KEY")
-    
-    if missing:
-        print(f"Missing environment variables: {', '.join(missing)}")
-        sys.exit(1)
+load_dotenv(override=True)
 
 
 def main():
     """Run Responses API examples."""
     print("Azure OpenAI GPT-5-mini - Responses API\n")
     
-    check_environment()
-    
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
-    api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    # Get required environment variables - raises KeyError if missing
+    endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
+    api_key = os.environ["AZURE_OPENAI_API_KEY"]
     
     # Initialize OpenAI client with Azure endpoint
     client = OpenAI(
         api_key=api_key,
-        base_url=f"{endpoint}openai/v1/"
+        base_url=endpoint
     )
     
     # Example 1: Simple text input

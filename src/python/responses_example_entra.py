@@ -6,34 +6,31 @@ This demonstrates using Azure Identity (EntraID) instead of API keys.
 
 import os
 import sys
+
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from dotenv import load_dotenv
 from openai import OpenAI
-from azure.identity import DefaultAzureCredential
 
-
-def check_environment():
-    """Verify required environment variables are set."""
-    if not os.getenv("AZURE_OPENAI_ENDPOINT"):
-        print("Missing AZURE_OPENAI_ENDPOINT environment variable")
-        sys.exit(1)
+load_dotenv(override=True)
 
 
 def main():
     """Run Responses API examples with EntraID authentication."""
     print("Azure OpenAI GPT-5-mini - EntraID Authentication\n")
     
-    check_environment()
-    
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    # Get required environment variables - raises KeyError if missing
+    endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
     
     # Use DefaultAzureCredential for EntraID authentication
     # This automatically uses your Azure CLI login, Managed Identity, or other credential sources
-    credential = DefaultAzureCredential()
-    token = credential.get_token("https://cognitiveservices.azure.com/.default")
+    token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+    )
     
     # Initialize OpenAI client with Azure endpoint and EntraID authentication
     client = OpenAI(
-        base_url=f"{endpoint}openai/v1/",
-        api_key=token.token
+        base_url=endpoint,
+        api_key=token_provider
     )
     
     # Example 1: Simple text input with Responses API
