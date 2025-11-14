@@ -11,23 +11,15 @@ from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
 from openai import OpenAI
 
-load_dotenv()
-
-
-def check_environment():
-    """Verify required environment variables are set."""
-    if not os.getenv("AZURE_OPENAI_ENDPOINT"):
-        print("Missing AZURE_OPENAI_ENDPOINT environment variable")
-        sys.exit(1)
+load_dotenv(override=True)
 
 
 def main():
     """Run Responses API examples with EntraID authentication."""
     print("Azure OpenAI GPT-5-mini - EntraID Authentication\n")
     
-    check_environment()
-    
-    endpoint = os.getenv("AZURE_OPENAI_ENDPOINT")
+    # Get required environment variables - raises KeyError if missing
+    endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
     
     # Use DefaultAzureCredential for EntraID authentication
     # This automatically uses your Azure CLI login, Managed Identity, or other credential sources
