@@ -15,7 +15,7 @@ param environmentName string
   'eastus2'
   'japaneast'
   'koreacentral'
-  'sounthindia'
+  'southindia'
   'swedencentral'
   'switzerlandnorth'
   'uksouth'
