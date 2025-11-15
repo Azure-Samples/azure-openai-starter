@@ -7,7 +7,25 @@ targetScope = 'resourceGroup'
 param environmentName string
 
 @description('Primary location for all resources')
-param location string = resourceGroup().location
+@allowed([
+  // Regions where gpt-5-mini is available,
+  // see https://learn.microsoft.com/azure/ai-foundry/foundry-models/concepts/models-sold-directly-by-azure?pivots=azure-openai&tabs=global-standard-aoai%2Cstandard-chat-completions%2Cglobal-standard#global-standard-model-availability
+  'australiaeast'
+  'eastus'
+  'eastus2'
+  'japaneast'
+  'koreacentral'
+  'southindia'
+  'swedencentral'
+  'switzerlandnorth'
+  'uksouth'
+])
+@metadata({
+  azd: {
+    type: 'location'
+  }
+})
+param location string
 
 @description('Unique token for resource naming')
 param resourceToken string = toLower(uniqueString(subscription().id, environmentName, location))
@@ -27,6 +45,7 @@ module openai 'resources.bicep' = {
 }
 
 // Outputs that azd expects
+output AZURE_LOCATION string = location
 output AZURE_OPENAI_ENDPOINT string = openai.outputs.AZURE_OPENAI_ENDPOINT
 output AZURE_OPENAI_NAME string = openai.outputs.AZURE_OPENAI_NAME
 output AZURE_OPENAI_RESOURCE_ID string = openai.outputs.AZURE_OPENAI_RESOURCE_ID
