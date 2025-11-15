@@ -282,9 +282,14 @@ resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
 │   └── resources.bicep        # Azure OpenAI resource definition
 ├── src/
 │   ├── go/
-│   │   ├── main.go                      # EntraID and API key authentication
-│   │   ├── go.mod                       # Go module dependencies
-│   │   ├── go.sum                       # Go dependency checksums
+│   │   ├── responses_example
+│   │   |   ├── main.go                  # API key authentication
+│   │   |   ├── go.mod                   # Go module dependencies
+│   │   |   └── go.sum                   # Go dependency checksums
+│   │   └── responses_example_entra
+│   │   |   ├── main.go                  # EntraID key authentication
+│   │   |   ├── go.mod                   # Go module dependencies
+│   │   |   └── go.sum                   # Go dependency checksums
 │   ├── python/
 │   │   ├── responses_example.py         # API key authentication
 │   │   ├── responses_example_entra.py   # EntraID authentication
