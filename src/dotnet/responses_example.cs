@@ -26,12 +26,12 @@ var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")
 var credential = new ApiKeyCredential(apiKey);
 var clientOptions = new OpenAIClientOptions
 {
-	Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
+    Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
 };
 var responseClient = new OpenAIResponseClient("gpt-5-mini", credential, clientOptions);
 var responseCreationOptions = new ResponseCreationOptions
 {
-	MaxOutputTokenCount = 1000
+    MaxOutputTokenCount = 1000
 };
 
 // Example 1: Simple text input
@@ -39,8 +39,8 @@ Console.WriteLine("Example 1: Simple text input");
 Console.WriteLine();
 
 var response1 = await responseClient.CreateResponseAsync(
-	userInputText: "Explain quantum computing in simple terms",
-	options: responseCreationOptions);
+    userInputText: "Explain quantum computing in simple terms",
+    options: responseCreationOptions);
 
 var result1 = response1.Value;
 Console.WriteLine($"Response: {result1.GetOutputText()}");
@@ -55,13 +55,13 @@ Console.WriteLine();
 
 var messages = new List<ResponseItem>
 {
-	ResponseItem.CreateSystemMessageItem("You are an Azure cloud architect."),
-	ResponseItem.CreateUserMessageItem("Design a scalable web application architecture.")
+    ResponseItem.CreateSystemMessageItem("You are an Azure cloud architect."),
+    ResponseItem.CreateUserMessageItem("Design a scalable web application architecture.")
 };
 
 var response2 = await responseClient.CreateResponseAsync(
-	inputItems: messages,
-	options: responseCreationOptions);
+    inputItems: messages,
+    options: responseCreationOptions);
 
 var result2 = response2.Value;
 Console.WriteLine($"Response: {result2.GetOutputText()}");

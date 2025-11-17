@@ -35,7 +35,8 @@ Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single C
 ## Quick Start
 
 ```bash
-# 1. Login to Azure
+# 1. Login to Azure - both Azure CLI and Azure Developer CLI
+az login
 azd auth login
 
 # 2. Deploy GPT-5-mini to Azure OpenAI 
@@ -53,19 +54,17 @@ That's it! 🚀 You now have **Azure OpenAI** with **GPT-5-mini** model deployed
 <details>
 <summary><strong>Click to expand Keyless setup and code examples</strong></summary>
 
-**Setup Steps:**
+#### Setup Steps
 
 <details open>
 <summary><strong>zsh/bash</strong></summary>
 
 ```bash
-# zsh/bash
-
 # 1. Get your endpoint
 endpoint=$(azd env get-value 'AZURE_OPENAI_ENDPOINT')
 
 # 2. Set environment variable
-AZURE_OPENAI_ENDPOINT=$endpoint
+export AZURE_OPENAI_ENDPOINT=$endpoint
 
 # 3. Assign yourself the OpenAI User role
 userId=$(az ad signed-in-user show --query id -o tsv)
@@ -83,12 +82,11 @@ cd src/dotnet && dotnet run responses_example_entra.cs
 ```
 
 </details>
+
 <details>
 <summary><strong>PowerShell</strong></summary>
 
 ```powershell
-# PowerShell
-
 # 1. Get your endpoint
 $endpoint = azd env get-value 'AZURE_OPENAI_ENDPOINT'
 
@@ -112,7 +110,17 @@ cd src/dotnet && dotnet run responses_example_entra.cs
 
 </details>
 
-**Code Samples:**
+> **NOTE**: If your Azure account is bound with more than one Azure tenant, you should specify the tenant ID before running the app; otherwise you'll get an authentication error.
+>
+> ```bash
+> # zsh/bash
+> export AZURE_TENANT_ID=$(az account show --query "tenantId" -o tsv)
+>
+> # PowerShell
+> $env:AZURE_TENANT_ID = az account show --query "tenantId" -o tsv
+> ```
+
+#### Code Samples
 
 <details>
 <summary><strong>Python Code:</strong></summary>
@@ -214,78 +222,31 @@ resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
 #:package OpenAI@2.*
 #:package Azure.Identity@1.*
 
-// Azure OpenAI GPT-5-mini - Responses API with EntraID Authentication
-// This demonstrates using Azure Identity (EntraID) instead of API keys.
-
 using System.ClientModel.Primitives;
-
 using Azure.Identity;
-
 using OpenAI;
 using OpenAI.Responses;
 
 #pragma warning disable OPENAI001
 
-// Run Responses API examples with EntraID authentication.
-Console.WriteLine("Azure OpenAI GPT-5-mini - EntraID Authentication");
-Console.WriteLine();
-
-// Get required environment variables - throws InvalidOperationException if missing
-var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT") 
-               ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
-
-// Use DefaultAzureCredential for EntraID authentication
-// This automatically uses your Azure CLI login, Managed Identity, or other credential sources
-var credential = new DefaultAzureCredential();
-var policy = new BearerTokenPolicy(credential, "https://cognitiveservices.azure.com/.default");
+var policy = new BearerTokenPolicy(new DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default");
 var clientOptions = new OpenAIClientOptions
 {
-    Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/"),
+    Endpoint = new Uri($"{Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!.TrimEnd('/')}/openai/v1/"),
     
 };
 
-// Initialize OpenAI Response client with Azure endpoint and EntraID authentication
 var responseClient = new OpenAIResponseClient("gpt-5-mini", policy, clientOptions);
 var responseCreationOptions = new ResponseCreationOptions
 {
     MaxOutputTokenCount = 1000
 };
 
-// Example 1: Simple text input with Responses API
-Console.WriteLine("Example 1: Simple text input");
-Console.WriteLine();
-
 var response1 = await responseClient.CreateResponseAsync(
     userInputText: "Explain quantum computing in simple terms",
     options: responseCreationOptions);
 
-var result1 = response1.Value;
-Console.WriteLine($"Response: {result1.GetOutputText()}");
-Console.WriteLine($"Status: {result1.Status}");
-Console.WriteLine($"Reasoning tokens: {result1.Usage.OutputTokenDetails.ReasoningTokenCount}");
-Console.WriteLine($"Output tokens: {result1.Usage.OutputTokenCount}");
-Console.WriteLine();
-
-// Example 2: Conversation format with Responses API
-Console.WriteLine("Example 2: Conversation format");
-Console.WriteLine();
-
-var messages = new List<ResponseItem>
-{
-    ResponseItem.CreateSystemMessageItem("You are an Azure cloud architect."),
-    ResponseItem.CreateUserMessageItem("Design a scalable web application architecture.")
-};
-
-var response2 = await responseClient.CreateResponseAsync(
-    inputItems: messages,
-    options: responseCreationOptions);
-
-var result2 = response2.Value;
-Console.WriteLine($"Response: {result2.GetOutputText()}");
-Console.WriteLine($"Status: {result2.Status}");
-Console.WriteLine($"Reasoning tokens: {result2.Usage.OutputTokenDetails.ReasoningTokenCount}");
-Console.WriteLine($"Output tokens: {result2.Usage.OutputTokenCount}");
-Console.WriteLine();
+Console.WriteLine(response1.Value.GetOutputText());
 ```
 
 </details>
@@ -308,17 +269,21 @@ Console.WriteLine();
 <details>
 <summary><strong>Click to expand API key setup and code examples</strong></summary>
 
-**Setup Steps:**
-```bash
-# 1. Get your deployment info
-azd env get-values
+#### Setup Steps
+
+<details open>
+<summary><strong>zsh/bash</strong></summary>
+
+```powershell
+# 1. Get your endpoint
+endpoint=$(azd env get-value 'AZURE_OPENAI_ENDPOINT')
 
 # 2. Get your API key
-az cognitiveservices account keys list --name YOUR_RESOURCE_NAME --resource-group rg-YOUR_ENV_NAME
+apiKey=$(az cognitiveservices account keys list --name $(azd env get-value 'AZURE_OPENAI_NAME') --resource-group rg-$(azd env get-value 'AZURE_ENV_NAME'))
 
 # 3. Set environment variables
-$env:AZURE_OPENAI_ENDPOINT="YOUR_ENDPOINT"
-$env:AZURE_OPENAI_API_KEY="YOUR_API_KEY"
+export AZURE_OPENAI_ENDPOINT=$endpoint
+export AZURE_OPENAI_API_KEY=$apiKey
 
 # 4. Run API key examples
 cd src/python && python responses_example.py
@@ -326,9 +291,43 @@ cd src/python && python responses_example.py
 cd src/typescript && npm start
 # or
 cd src/go && go run .
+# or
+cd src/dotnet && dotnet run responses_example.cs
 ```
 
-**Python Code:**
+</details>
+
+<details>
+<summary><strong>PowerShell</strong></summary>
+
+```powershell
+# 1. Get your endpoint
+$endpoint = azd env get-value 'AZURE_OPENAI_ENDPOINT'
+
+# 2. Get your API key
+$apiKey = az cognitiveservices account keys list --name $(azd env get-value 'AZURE_OPENAI_NAME') --resource-group rg-$(azd env get-value 'AZURE_ENV_NAME')
+
+# 3. Set environment variables
+$env:AZURE_OPENAI_ENDPOINT=$endpoint
+$env:AZURE_OPENAI_API_KEY=$apiKey
+
+# 4. Run API key examples
+cd src/python && python responses_example.py
+# or
+cd src/typescript && npm start
+# or
+cd src/go && go run .
+# or
+cd src/dotnet && dotnet run responses_example.cs
+```
+
+</details>
+
+#### Code Samples
+
+<details>
+<summary><strong>Python Code:</strong></summary>
+
 ```python
 from openai import OpenAI
 
@@ -345,7 +344,11 @@ response = client.responses.create(
 print(response.output_text)
 ```
 
-**TypeScript Code:**
+</details>
+
+<details>
+<summary><strong>TypeScript Code:</strong></summary>
+
 ```typescript
 import OpenAI from 'openai';
 
@@ -362,7 +365,11 @@ const response = await client.responses.create({
 console.log(response.output_text);
 ```
 
-**Go Code:**
+</details>
+
+<details>
+<summary><strong>Go Code:</strong></summary>
+
 ```go
 import (
     "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
@@ -385,6 +392,42 @@ resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
     MaxOutputTokens: openai.Int(1000),
 })
 ```
+
+</details>
+
+<details>
+<summary><strong>.NET Code:</strong></summary>
+
+```csharp
+#!/usr/bin/dotnet run
+
+#:package OpenAI@2.*
+
+using System.ClientModel;
+using OpenAI;
+using OpenAI.Responses;
+
+#pragma warning disable OPENAI001
+
+var credential = new ApiKeyCredential(Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY"));
+var clientOptions = new OpenAIClientOptions
+{
+    Endpoint = new Uri($"{Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT").TrimEnd('/')}/openai/v1/")
+};
+var responseClient = new OpenAIResponseClient("gpt-5-mini", credential, clientOptions);
+var responseCreationOptions = new ResponseCreationOptions
+{
+    MaxOutputTokenCount = 1000
+};
+
+var response1 = await responseClient.CreateResponseAsync(
+    userInputText: "Explain quantum computing in simple terms",
+    options: responseCreationOptions);
+
+Console.WriteLine($"Response: {response1.Value.GetOutputText()}");
+```
+
+</details>
 
 </details>
 
@@ -411,16 +454,20 @@ resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
 ✅ **Two authentication methods** - API keys (quick start) + EntraID (production-ready)  
 ✅ **Unique resource naming** - No conflicts with existing resources  
 
-
 ## Template Structure
 
-```
+```text
 ├── azure.yaml                 # azd configuration
 ├── infra/
 │   ├── main.bicep             # Main deployment template
 │   ├── main.parameters.json   # Deployment parameters
 │   └── resources.bicep        # Azure OpenAI resource definition
 ├── src/
+│   ├── dotnet/
+│   │   ├── responses_example.cs         # API key authentication
+│   │   ├── responses_example_entra.cs   # EntraID authentication
+│   │   ├── global.json                  # .NET SDK configuration
+│   │   └── README.md                    # .NET prerequisites
 │   ├── go/
 │   │   ├── responses_example
 │   │   |   ├── main.go                  # API key authentication
@@ -463,6 +510,7 @@ azd down
 ## Alternative Regions
 
 Want to deploy to East US 2 instead?
+
 ```bash
 azd env set AZURE_LOCATION eastus2
 azd up
@@ -492,6 +540,8 @@ gptModelName: 'gpt-5'           // Needs approval
 **"Quota exceeded"** → Check your subscription quota for Azure OpenAI
 
 **"Permission denied"** → Ensure you have Cognitive Services Contributor role
+
+**"Tenant provide token mismatch"** → Set `AZURE_TENANT_ID` environment variable with the proper tenant ID.
 
 **Need debug info?** → Run `azd up --debug` for detailed logs
 
