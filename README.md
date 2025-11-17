@@ -154,7 +154,9 @@ resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
 ```
 
 **Java Code:**
-_Add the following imports_
+
+_add the following imports_
+
 ```java
 import com.azure.identity.AuthenticationUtil;
 import com.azure.identity.DefaultAzureCredentialBuilder;
@@ -164,7 +166,7 @@ import com.openai.credential.BearerTokenCredential;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 ```
-
+_code snippet_
 ```java
 Supplier<String> bearerTokenSupplier = AuthenticationUtil.getBearerTokenSupplier(
     new DefaultAzureCredentialBuilder().build(), 
@@ -285,7 +287,8 @@ resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
 ```
 
 **Java Code:**
-_Add the following imports_
+
+_add the following imports_
 ```java
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
@@ -293,6 +296,7 @@ import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseCreateParams;
 ```
 
+_code snippet_
 ```java
 OpenAIClient client = OpenAIOkHttpClient.builder()
     .apiKey(System.getenv("AZURE_OPENAI_API_KEY"))
