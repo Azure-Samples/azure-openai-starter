@@ -31,3 +31,6 @@ Thumbs.db
 # Bicep generated files
 infra/*.json
 !infra/main.parameters.json
+
+# Java
+src/java/target/
