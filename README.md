@@ -5,7 +5,7 @@ languages:
 - python
 - typescript
 - go
-- dotnet
+- csharp
 - java
 products:
 - azure-openai
