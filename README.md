@@ -23,7 +23,7 @@ Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single C
 
 ## Architecture Overview
 
-![Azure OpenAI Starter Kit Architecture](./images/aoaistarter.png)
+![Azure OpenAI Starter Kit Architecture](./images/aoaistarterimage.png)
 
 *The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for Python, TypeScript, Go, .NET and and Java, featuring secure EntraID authentication and the new Responses API optimized for GPT-5-mini.*
 
