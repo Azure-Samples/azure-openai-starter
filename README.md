@@ -80,6 +80,8 @@ cd src/typescript && tsx responses_example_entra.ts
 cd src/go && go run .
 # or
 cd src/dotnet && dotnet run responses_example_entra.cs
+# or
+cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExampleEntra"
 ```
 
 </details>
@@ -363,6 +365,8 @@ cd src/typescript && npm start
 cd src/go && go run .
 # or
 cd src/dotnet && dotnet run responses_example.cs
+# or
+cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExample"
 ```
 
 </details>
