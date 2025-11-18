@@ -3,7 +3,7 @@
 #:package OpenAI@2.*
 #:package Azure.Identity@1.*
 
-// Azure OpenAI GPT-5-mini - Responses API with EntraID Authentication
+// Azure OpenAI GPT-5-mini - Responses API with Entra Authentication
 // This demonstrates using Azure Identity (EntraID) instead of API keys.
 
 using System.ClientModel.Primitives;
