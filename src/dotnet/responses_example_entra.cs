@@ -32,7 +32,7 @@ var clientOptions = new OpenAIClientOptions
     Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
 };
 
-// Initialize OpenAI Response client with Azure endpoint and EntraID authentication
+// Initialize OpenAI Response client with Azure endpoint and Entra authentication
 var responseClient = new OpenAIResponseClient("gpt-5-mini", policy, clientOptions);
 var responseCreationOptions = new ResponseCreationOptions
 {
