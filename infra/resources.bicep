@@ -25,42 +25,44 @@ param gptModelVersion string = '2025-08-07'
 @description('GPT deployment capacity')
 param gptCapacity int = 10
 
-// Azure OpenAI resource
-resource openAiAccount 'Microsoft.CognitiveServices/accounts@2023-05-01' = {
-  name: 'openai-${resourceToken}'
-  location: location
-  kind: 'OpenAI'
-  properties: {
-    customSubDomainName: 'openai-${resourceToken}'
-    publicNetworkAccess: 'Enabled'
-  }
-  sku: {
-    name: sku
-  }
-  tags: {
-    'azd-env-name': environmentName
-  }
-}
-
-// GPT Model Deployment
-resource gptModelDeployment 'Microsoft.CognitiveServices/accounts/deployments@2023-05-01' = if (deployGptModel) {
-  name: 'gpt-5-mini'
-  parent: openAiAccount
-  properties: {
-    model: {
-      format: 'OpenAI'
-      name: gptModelName
-      version: gptModelVersion
+// Deploy the Azure OpenAI resource
+module openai 'br/public:avm/res/cognitive-services/account:0.13.2' = {
+  name: 'openai'
+  params: {
+    name: 'openai-${resourceToken}'
+    location: location
+    tags: {
+      'azd-env-name': environmentName
     }
-  }
-  sku: {
-    name: 'GlobalStandard'
-    capacity: gptCapacity
+    kind: 'OpenAI'
+    sku: sku
+    customSubDomainName: 'openai-${resourceToken}'
+    networkAcls: {
+      defaultAction: 'Allow'
+      bypass: 'AzureServices'
+    }
+    // Allow key-based authentication
+    // Should be disabled in production environments in favor of managed identities
+    disableLocalAuth: false
+    deployments: [
+      {
+        name: gptModelName
+        model: {
+          format: 'OpenAI'
+          name: gptModelName
+          version: gptModelVersion
+        }
+        sku: {
+          name: 'GlobalStandard'
+          capacity: gptCapacity
+        }
+      }
+    ]
   }
 }
 
 // Outputs
-output AZURE_OPENAI_ENDPOINT string = openAiAccount.properties.endpoint
-output AZURE_OPENAI_NAME string = openAiAccount.name
-output AZURE_OPENAI_RESOURCE_ID string = openAiAccount.id
-output AZURE_OPENAI_GPT_DEPLOYMENT_NAME string = deployGptModel ? gptModelDeployment.name : ''
+output AZURE_OPENAI_ENDPOINT string = openai.outputs.endpoint
+output AZURE_OPENAI_NAME string = openai.outputs.name
+output AZURE_OPENAI_RESOURCE_ID string = openai.outputs.resourceId
+output AZURE_OPENAI_GPT_DEPLOYMENT_NAME string = deployGptModel ? gptModelName : ''

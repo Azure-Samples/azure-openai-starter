@@ -6,25 +6,26 @@ languages:
 - typescript
 - go
 - dotnet
+- java
 products:
 - azure-openai
 - azure
 urlFragment: azure-openai-starter
 name: The Azure OpenAI Starter Kit
-description: Deploy Azure OpenAI with GPT-5-mini using one CLI command. Includes OpenAI SDK for Python, TypeScript and Go examples using the Responses API.
+description: Deploy Azure OpenAI with GPT-5-mini using one CLI command. Includes OpenAI SDK for Python, TypeScript, Go and Java examples using the Responses API.
 ---
 -->
 # The Azure OpenAI Starter Kit
 
 **The fastest way to get started with Azure OpenAI.**
 
-Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single CLI command. Includes OpenAI SDK for Python, TypeScript, Go and .NET examples using the Responses API.
+Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single CLI command. Includes OpenAI SDK for Python, TypeScript, Go, .NET and Java examples using the Responses API. 
 
 ## Architecture Overview
 
 ![Azure OpenAI Starter Kit Architecture](./images/aoaistarter.png)
 
-*The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for Python, TypeScript, Go and .NET, featuring secure EntraID authentication and the new Responses API optimized for GPT-5-mini.*
+*The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for Python, TypeScript, Go, .NET and and Java, featuring secure EntraID authentication and the new Responses API optimized for GPT-5-mini.*
 
 ## Prerequisites
 
@@ -106,6 +107,8 @@ cd src/typescript && tsx responses_example_entra.ts
 cd src/go && go run .
 # or
 cd src/dotnet && dotnet run responses_example_entra.cs
+# or
+cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExampleEntra"
 ```
 
 </details>
@@ -251,6 +254,45 @@ Console.WriteLine(response1.Value.GetOutputText());
 
 </details>
 
+<details>
+<summary><strong>Java Code:</strong></summary>
+
+_add the following imports_
+
+```java
+import com.azure.identity.AuthenticationUtil;
+import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.openai.client.OpenAIClient;
+import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.credential.BearerTokenCredential;
+import com.openai.models.responses.Response;
+import com.openai.models.responses.ResponseCreateParams;
+```
+_code snippet_
+
+```java
+Supplier<String> bearerTokenSupplier = AuthenticationUtil.getBearerTokenSupplier(
+    new DefaultAzureCredentialBuilder().build(), 
+    "https://cognitiveservices.azure.com/.default"
+);
+
+OpenAIClient client = OpenAIOkHttpClient.builder()
+    .baseUrl(System.getenv("AZURE_OPENAI_ENDPOINT"))
+    .credential(BearerTokenCredential.create(bearerTokenSupplier))
+    .build();
+
+Response response = client.responses().create(
+    ResponseCreateParams.builder()
+        .model("gpt-5-mini")
+        .input(ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms"))
+        .maxOutputTokens(1000)
+        .build()
+);
+System.out.println(response.output());
+```
+
+</details>
+
 **Why Keyless?**
 
 ✅ No API keys to manage or rotate  
@@ -293,6 +335,8 @@ cd src/typescript && npm start
 cd src/go && go run .
 # or
 cd src/dotnet && dotnet run responses_example.cs
+# or
+cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExample"
 ```
 
 </details>
@@ -429,6 +473,38 @@ Console.WriteLine($"Response: {response1.Value.GetOutputText()}");
 
 </details>
 
+<details>
+<summary><strong>Java Code:</strong></summary>
+
+_add the following imports_
+
+```java
+import com.openai.client.OpenAIClient;
+import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.models.responses.Response;
+import com.openai.models.responses.ResponseCreateParams;
+```
+
+_code snippet_
+
+```java
+OpenAIClient client = OpenAIOkHttpClient.builder()
+    .apiKey(System.getenv("AZURE_OPENAI_API_KEY"))
+    .baseUrl(System.getenv("AZURE_OPENAI_ENDPOINT"))
+    .build();
+
+Response response = client.responses().create(
+    ResponseCreateParams.builder()
+        .model("gpt-5-mini")
+        .input(ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms"))
+        .maxOutputTokens(1000)
+        .build()
+);
+System.out.println(response.output());
+```
+
+</details>
+
 </details>
 
 ---
@@ -440,7 +516,7 @@ Console.WriteLine($"Response: {response1.Value.GetOutputText()}");
 - **Core Infrastructure**: Azure OpenAI resource with GPT-5-mini deployment
 - **Optimal Configuration**: Flexible region selection, GlobalStandard SKU, v1 API
 - **Secure Authentication**: EntraID (Azure Identity) recommended + API key option
-- **Client Examples**: Python, TypeScript and Go using the new Responses API
+- **Client Examples**: Python, TypeScript, Go and Java using the new Responses API
 - **Validation Scripts**: PowerShell and Bash scripts for testing
 - **Complete Documentation**: Setup guides and troubleshooting tips
 
@@ -450,7 +526,7 @@ Console.WriteLine($"Response: {response1.Value.GetOutputText()}");
 ✅ **Flexible region** deployment - Choose your optimal region   
 ✅ **New v1 API** support - Future-proof, no version management needed  
 ✅ **Automatic deployment** - Model ready to use immediately  
-✅ **Multi-language examples** - Python, TypeScript/Node.js and Go clients  
+✅ **Multi-language examples** - Python, TypeScript/Node.js, Go and Java clients  
 ✅ **Two authentication methods** - API keys (quick start) + EntraID (production-ready)  
 ✅ **Unique resource naming** - No conflicts with existing resources  
 
@@ -477,6 +553,11 @@ Console.WriteLine($"Response: {response1.Value.GetOutputText()}");
 │   │   |   ├── main.go                  # EntraID key authentication
 │   │   |   ├── go.mod                   # Go module dependencies
 │   │   |   └── go.sum                   # Go dependency checksums
+│   ├── java/
+│   │   ├── pom.xml                      # Maven dependencies
+│   │   └── src/main/java/com/azure/openai/starter/
+│   │       ├── ResponsesExample.java           # API key authentication
+│   │       └── ResponsesExampleEntra.java      # EntraID authentication
 │   ├── python/
 │   │   ├── responses_example.py         # API key authentication
 │   │   ├── responses_example_entra.py   # EntraID authentication
@@ -551,7 +632,7 @@ gptModelName: 'gpt-5'           // Needs approval
 ✅ **Latest model** - GPT-5-mini with reasoning capabilities  
 ✅ **Future-proof** - Uses new v1 API, no version management  
 ✅ **Production-ready** - GlobalStandard SKU, EntraID auth, proper naming  
-✅ **Complete examples** - Python, TypeScript and Go with error handling  
+✅ **Complete examples** - Python, TypeScript, Go and Java with error handling  
 ✅ **Secure by default** - Supports keyless authentication with Azure Identity  
 ✅ **Easy cleanup** - Remove everything with `azd down`  
 
