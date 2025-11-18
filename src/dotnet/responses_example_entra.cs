@@ -23,7 +23,7 @@ Console.WriteLine();
 var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT") 
                ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
 
-// Use DefaultAzureCredential for EntraID authentication
+// Use DefaultAzureCredential for Entra authentication
 // This automatically uses your Azure CLI login, Managed Identity, or other credential sources
 var credential = new DefaultAzureCredential();
 var policy = new BearerTokenPolicy(credential, "https://cognitiveservices.azure.com/.default");
