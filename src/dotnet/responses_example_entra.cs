@@ -15,7 +15,7 @@ using OpenAI.Responses;
 
 #pragma warning disable OPENAI001
 
-// Run Responses API examples with EntraID authentication.
+// Run Responses API examples with Entra authentication.
 Console.WriteLine("Azure OpenAI GPT-5-mini - EntraID Authentication");
 Console.WriteLine();
 
