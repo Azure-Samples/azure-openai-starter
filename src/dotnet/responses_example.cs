@@ -30,19 +30,13 @@ var clientOptions = new OpenAIClientOptions
 };
 
 // Initialize OpenAI Response client with Azure endpoint
-var responseClient = new OpenAIResponseClient("gpt-5-mini", credential, clientOptions);
-var responseCreationOptions = new ResponseCreationOptions
-{
-    MaxOutputTokenCount = 1000
-};
+var responsesClient = new ResponsesClient("gpt-5-mini", credential, clientOptions);
 
 // Example 1: Simple text input
 Console.WriteLine("Example 1: Simple text input");
 Console.WriteLine();
 
-OpenAIResponse response1 = await responseClient.CreateResponseAsync(
-    userInputText: "Explain quantum computing in simple terms",
-    options: responseCreationOptions);
+ResponseResult response1 = await responsesClient.CreateResponseAsync(userInputText: "Explain quantum computing in simple terms");
 
 Console.WriteLine($"Response: {response1.GetOutputText()}");
 Console.WriteLine($"Status: {response1.Status}");
@@ -60,9 +54,12 @@ var messages = new List<ResponseItem>
     ResponseItem.CreateUserMessageItem("Design a scalable web application architecture.")
 };
 
-OpenAIResponse response2 = await responseClient.CreateResponseAsync(
-    inputItems: messages,
-    options: responseCreationOptions);
+var createResponseOptions2 = new CreateResponseOptions(inputItems: messages)
+{
+    MaxOutputTokenCount = 1000
+};
+
+ResponseResult response2 = await responsesClient.CreateResponseAsync(options: createResponseOptions2);
 
 Console.WriteLine($"Response: {response2.GetOutputText()}");
 Console.WriteLine($"Status: {response2.Status}");
