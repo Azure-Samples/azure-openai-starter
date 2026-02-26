@@ -27,7 +27,7 @@ param gptCapacity int = 10
 
 // Deploy the Azure OpenAI resource
 module openai 'br/public:avm/res/cognitive-services/account:0.13.2' = {
-  name: 'openai'
+  name: 'openai-account'
   params: {
     name: 'openai-${resourceToken}'
     location: location
