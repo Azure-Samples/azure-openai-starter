@@ -25,10 +25,10 @@ async function main(): Promise<void> {
     const endpoint = process.env.AZURE_OPENAI_ENDPOINT!;
     const apiKey = process.env.AZURE_OPENAI_API_KEY!;
     
-    // Initialize OpenAI client with Azure endpoint
+    // Initialize OpenAI client with Azure endpoint (v1 API path)
     const client = new OpenAI({
         apiKey: apiKey,
-        baseURL: `${endpoint}/openai/v1/`
+        baseURL: `${endpoint.replace(/\/+$/, '')}/openai/v1/`
     });
     
     // Example 1: Simple text input

@@ -21,10 +21,10 @@ def main():
     endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
     api_key = os.environ["AZURE_OPENAI_API_KEY"]
     
-    # Initialize OpenAI client with Azure endpoint
+    # Initialize OpenAI client with Azure endpoint (v1 API path)
     client = OpenAI(
         api_key=api_key,
-        base_url=endpoint
+        base_url=f"{endpoint.rstrip('/')}/openai/v1/"
     )
     
     # Example 1: Simple text input

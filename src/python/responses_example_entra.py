@@ -27,9 +27,9 @@ def main():
     DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
     )
     
-    # Initialize OpenAI client with Azure endpoint and EntraID authentication
+    # Initialize OpenAI client with Azure endpoint and EntraID authentication (v1 API path)
     client = OpenAI(
-        base_url=endpoint,
+        base_url=f"{endpoint.rstrip('/')}/openai/v1/",
         api_key=token_provider
     )
     

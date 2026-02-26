@@ -30,9 +30,9 @@ async function main(): Promise<void> {
     // Get a fresh token directly
     const tokenResponse = await credential.getToken(scope);
     
-    // Initialize OpenAI client with Azure endpoint and the token
+    // Initialize OpenAI client with Azure endpoint and the token (v1 API path)
     const client = new OpenAI({
-        baseURL: `${endpoint}/openai/v1/`,
+        baseURL: `${endpoint.replace(/\/+$/, '')}/openai/v1/`,
         apiKey: await tokenProvider()
     });
     
