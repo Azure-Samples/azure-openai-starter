@@ -67,12 +67,10 @@ endpoint=$(azd env get-value 'AZURE_OPENAI_ENDPOINT')
 # 2. Set environment variable
 export AZURE_OPENAI_ENDPOINT=$endpoint
 
-# 3. Assign yourself the OpenAI User role
-userId=$(az ad signed-in-user show --query id -o tsv)
-resourceId="/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-$(azd env get-value 'AZURE_ENV_NAME')/providers/Microsoft.CognitiveServices/accounts/$(azd env get-value 'AZURE_OPENAI_NAME')"
-az role assignment create --role "Cognitive Services OpenAI User" --assignee $userId --scope $resourceId
+# Note: The "Cognitive Services User" role is automatically assigned to your
+# account during "azd up", so no manual role assignment is needed.
 
-# 4. Run EntraID examples
+# 3. Run EntraID examples
 cd src/python && python responses_example_entra.py
 # or
 cd src/typescript && tsx responses_example_entra.ts
@@ -96,12 +94,10 @@ $endpoint = azd env get-value 'AZURE_OPENAI_ENDPOINT'
 # 2. Set environment variable
 $env:AZURE_OPENAI_ENDPOINT=$endpoint
 
-# 3. Assign yourself the OpenAI User role
-$userId = az ad signed-in-user show --query id -o tsv
-$resourceId = "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-$(azd env get-value 'AZURE_ENV_NAME')/providers/Microsoft.CognitiveServices/accounts/$(azd env get-value 'AZURE_OPENAI_NAME')"
-az role assignment create --role "Cognitive Services OpenAI User" --assignee $userId --scope $resourceId
+# Note: The "Cognitive Services User" role is automatically assigned to your
+# account during "azd up", so no manual role assignment is needed.
 
-# 4. Run EntraID examples
+# 3. Run EntraID examples
 cd src/python && python responses_example_entra.py
 # or
 cd src/typescript && tsx responses_example_entra.ts

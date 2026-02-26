@@ -38,6 +38,7 @@ This workspace contains a minimal Azure Developer CLI (azd) template for deployi
 - **API**: New v1 endpoint format for future compatibility
 - **Deployment name**: `gpt-5-mini` (descriptive naming)
 - **Resource naming**: Auto-generated unique names with resourceToken
+- **RBAC**: Cognitive Services User role auto-assigned to deploying user via Bicep
 
 ## Usage Instructions:
 1. **Deploy**: `azd auth login && azd up`

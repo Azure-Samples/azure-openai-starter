@@ -33,4 +33,5 @@ infra/*.json
 !infra/main.parameters.json
 
 # Java
-src/java/target/src/java/cp.txt
+src/java/target/
+src/java/cp.txt

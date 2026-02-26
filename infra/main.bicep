@@ -30,6 +30,9 @@ param location string
 @description('Unique token for resource naming')
 param resourceToken string = toLower(uniqueString(subscription().id, environmentName, location))
 
+@description('Principal ID of the deploying user. azd populates this automatically.')
+param principalId string = ''
+
 // Deploy the Azure OpenAI resource
 module openai 'resources.bicep' = {
   name: 'openai'
@@ -41,6 +44,7 @@ module openai 'resources.bicep' = {
     gptModelName: 'gpt-5-mini'
     gptModelVersion: '2025-08-07'
     gptCapacity: 10
+    principalId: principalId
   }
 }
 

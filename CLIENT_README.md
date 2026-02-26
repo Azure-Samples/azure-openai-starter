@@ -30,20 +30,11 @@ The Responses API is the newer, cleaner interface designed specifically for GPT-
 # 1. Get your Azure OpenAI endpoint
 azd env get-values | Select-String 'AZURE_OPENAI_ENDPOINT'
 
-# 2. Get your environment name and resource name
-azd env get-values | Select-String 'AZURE_ENV_NAME|AZURE_OPENAI_NAME'
-
-# 3. Assign RBAC Role - Get your user ID
-$userId = az ad signed-in-user show --query id -o tsv
-
-# 4. Get the OpenAI resource ID (replace YOUR_ENV_NAME and YOUR_OPENAI_NAME)
-$resourceId = "/subscriptions/$(az account show --query id -o tsv)/resourceGroups/rg-YOUR_ENV_NAME/providers/Microsoft.CognitiveServices/accounts/YOUR_OPENAI_NAME"
-
-# 5. Assign the "Cognitive Services OpenAI User" role
-az role assignment create --role "Cognitive Services OpenAI User" --assignee $userId --scope $resourceId
-
-# 6. Set environment variable
+# 2. Set environment variable
 $env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
+
+# Note: The "Cognitive Services User" role is automatically assigned to your
+# account during "azd up", so no manual role assignment is needed.
 ```
 
 ### Python Setup & Code
