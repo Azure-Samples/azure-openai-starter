@@ -4,6 +4,7 @@ import (
 	"context"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
@@ -20,7 +21,7 @@ func newClientUsingAnAPIKey(endpoint string) openai.Client {
 	// Initialize OpenAI client with Azure endpoint, using an API Key
 	// NOTE: for Entra authentication, see the [NewClientUsingEntraAuthentication] function.
 	client := openai.NewClient(
-		option.WithBaseURL(endpoint+"/openai/v1/"),
+		option.WithBaseURL(strings.TrimRight(endpoint, "/")+"/openai/v1/"),
 		option.WithAPIKey(apiKey),
 	)
 

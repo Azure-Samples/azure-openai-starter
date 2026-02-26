@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/runtime"
@@ -35,7 +36,7 @@ func newClientUsingEntraAuthentication(endpoint string) openai.Client {
 
 	// Initialize OpenAI client with Azure endpoint and the token
 	client := openai.NewClient(
-		option.WithBaseURL(endpoint+"/openai/v1/"),
+		option.WithBaseURL(strings.TrimRight(endpoint, "/")+"/openai/v1/"),
 		option.WithMiddleware(func(req *http.Request, next option.MiddlewareNext) (*http.Response, error) {
 			pipeline := runtime.NewPipeline("azopenai-starter-kit", "", runtime.PipelineOptions{}, &policy.ClientOptions{
 				InsecureAllowCredentialWithHTTP: true, // allow for plain HTTP proxies, etc..

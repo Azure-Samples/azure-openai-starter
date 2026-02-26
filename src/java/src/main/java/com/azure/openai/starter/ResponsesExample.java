@@ -28,10 +28,11 @@ public class ResponsesExample {
             System.exit(1);
         }
 
-        // Initialize OpenAI client with Azure endpoint
+        // Initialize OpenAI client with Azure endpoint (v1 API path)
+        String baseUrl = endpoint.replaceAll("/+$", "") + "/openai/v1/";
         OpenAIClient client = OpenAIOkHttpClient.builder()
                 .apiKey(apiKey)
-                .baseUrl(endpoint)
+                .baseUrl(baseUrl)
                 .build();
 
         // Example 1: Simple text input with Responses API

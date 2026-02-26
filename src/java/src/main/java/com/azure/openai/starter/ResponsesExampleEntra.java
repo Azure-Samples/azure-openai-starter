@@ -33,9 +33,10 @@ public class ResponsesExampleEntra {
         Supplier<String> bearerTokenSupplier = AuthenticationUtil.getBearerTokenSupplier(
                 new DefaultAzureCredentialBuilder().build(), "https://cognitiveservices.azure.com/.default");
 
-        // Initialize OpenAI client with Azure endpoint and Entra ID
+        // Initialize OpenAI client with Azure endpoint and Entra ID (v1 API path)
+        String baseUrl = endpoint.replaceAll("/+$", "") + "/openai/v1/";
         OpenAIClient client = OpenAIOkHttpClient.builder()
-                .baseUrl(endpoint)
+                .baseUrl(baseUrl)
                 // Set the Azure Entra ID
                 .credential(BearerTokenCredential.create(bearerTokenSupplier))
                 .build();
