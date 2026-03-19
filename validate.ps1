@@ -37,7 +37,34 @@ if (-not (Test-Path "infra/main.parameters.json")) {
     exit 1
 }
 
-Write-Host "✅ All required files found" -ForegroundColor Green
+Write-Host "✅ All required infra files found" -ForegroundColor Green
+
+# Check source examples
+$sourceChecks = @(
+    "src/python/responses_example.py",
+    "src/python/responses_example_entra.py",
+    "src/typescript/responses_example.ts",
+    "src/typescript/responses_example_entra.ts",
+    "src/go/responses_example/main.go",
+    "src/go/responses_example_entra/main.go",
+    "src/dotnet/responses_example.cs",
+    "src/dotnet/responses_example_entra.cs",
+    "src/java/pom.xml"
+)
+
+$allSourcesFound = $true
+foreach ($file in $sourceChecks) {
+    if (-not (Test-Path $file)) {
+        Write-Host "❌ $file not found" -ForegroundColor Red
+        $allSourcesFound = $false
+    }
+}
+
+if ($allSourcesFound) {
+    Write-Host "✅ All source examples found" -ForegroundColor Green
+} else {
+    Write-Host "⚠️  Some source examples are missing" -ForegroundColor Yellow
+}
 
 # Validate Bicep template if Azure CLI is available
 try {

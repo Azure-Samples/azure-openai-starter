@@ -34,7 +34,34 @@ if [ ! -f "infra/main.parameters.json" ]; then
     exit 1
 fi
 
-echo "✅ All required files found"
+echo "✅ All required infra files found"
+
+# Check source examples
+source_files=(
+    "src/python/responses_example.py"
+    "src/python/responses_example_entra.py"
+    "src/typescript/responses_example.ts"
+    "src/typescript/responses_example_entra.ts"
+    "src/go/responses_example/main.go"
+    "src/go/responses_example_entra/main.go"
+    "src/dotnet/responses_example.cs"
+    "src/dotnet/responses_example_entra.cs"
+    "src/java/pom.xml"
+)
+
+all_sources_found=true
+for file in "${source_files[@]}"; do
+    if [ ! -f "$file" ]; then
+        echo "❌ $file not found"
+        all_sources_found=false
+    fi
+done
+
+if [ "$all_sources_found" = true ]; then
+    echo "✅ All source examples found"
+else
+    echo "⚠️  Some source examples are missing"
+fi
 
 # Validate Bicep template if Azure CLI is available
 if command -v az &> /dev/null; then

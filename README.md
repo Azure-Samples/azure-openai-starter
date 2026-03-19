@@ -12,7 +12,7 @@ products:
 - azure
 urlFragment: azure-openai-starter
 name: The Azure OpenAI Starter Kit
-description: Deploy Azure OpenAI with GPT-5-mini using one CLI command. Includes OpenAI SDK for Python, TypeScript, Go and Java examples using the Responses API.
+description: Deploy Azure OpenAI with GPT-5-mini using one CLI command. Includes OpenAI SDK for Python, TypeScript, Go, .NET and Java examples using the Responses API.
 ---
 -->
 # The Azure OpenAI Starter Kit
@@ -25,7 +25,7 @@ Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single C
 
 ![Azure OpenAI Starter Kit Architecture](./images/aoaistarterimage.png)
 
-*The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for Python, TypeScript, Go, .NET and and Java, featuring secure EntraID authentication and the new Responses API optimized for GPT-5-mini.*
+*The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for Python, TypeScript, Go, .NET and Java, featuring secure EntraID authentication and the new Responses API optimized for GPT-5-mini.*
 
 ## Prerequisites
 
@@ -220,7 +220,7 @@ resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
 ```csharp
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.*
+#:package OpenAI@2.9.1
 #:package Azure.Identity@1.*
 
 using System.ClientModel.Primitives;
@@ -233,21 +233,15 @@ using OpenAI.Responses;
 var policy = new BearerTokenPolicy(new DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default");
 var clientOptions = new OpenAIClientOptions
 {
-    Endpoint = new Uri($"{Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!.TrimEnd('/')}/openai/v1/"),
-    
+    Endpoint = new Uri($"{Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!.TrimEnd('/')}/openai/v1/")
 };
 
-var responseClient = new OpenAIResponseClient("gpt-5-mini", policy, clientOptions);
-var responseCreationOptions = new ResponseCreationOptions
-{
-    MaxOutputTokenCount = 1000
-};
+var responsesClient = new ResponsesClient(policy, clientOptions);
 
-var response1 = await responseClient.CreateResponseAsync(
-    userInputText: "Explain quantum computing in simple terms",
-    options: responseCreationOptions);
+ResponseResult response1 = await responsesClient.CreateResponseAsync(
+    "gpt-5-mini", "Explain quantum computing in simple terms", null);
 
-Console.WriteLine(response1.Value.GetOutputText());
+Console.WriteLine(response1.GetOutputText());
 ```
 
 </details>
@@ -445,7 +439,7 @@ resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
 ```csharp
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.*
+#:package OpenAI@2.9.1
 
 using System.ClientModel;
 using OpenAI;
@@ -458,17 +452,12 @@ var clientOptions = new OpenAIClientOptions
 {
     Endpoint = new Uri($"{Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT").TrimEnd('/')}/openai/v1/")
 };
-var responseClient = new OpenAIResponseClient("gpt-5-mini", credential, clientOptions);
-var responseCreationOptions = new ResponseCreationOptions
-{
-    MaxOutputTokenCount = 1000
-};
+var responsesClient = new ResponsesClient(credential, clientOptions);
 
-var response1 = await responseClient.CreateResponseAsync(
-    userInputText: "Explain quantum computing in simple terms",
-    options: responseCreationOptions);
+ResponseResult response1 = await responsesClient.CreateResponseAsync(
+    "gpt-5-mini", "Explain quantum computing in simple terms", null);
 
-Console.WriteLine($"Response: {response1.Value.GetOutputText()}");
+Console.WriteLine($"Response: {response1.GetOutputText()}");
 ```
 
 </details>
@@ -516,7 +505,7 @@ System.out.println(response.output());
 - **Core Infrastructure**: Azure OpenAI resource with GPT-5-mini deployment
 - **Optimal Configuration**: Flexible region selection, GlobalStandard SKU, v1 API
 - **Secure Authentication**: EntraID (Azure Identity) recommended + API key option
-- **Client Examples**: Python, TypeScript, Go and Java using the new Responses API
+- **Client Examples**: Python, TypeScript, Go, .NET and Java using the new Responses API
 - **Validation Scripts**: PowerShell and Bash scripts for testing
 - **Complete Documentation**: Setup guides and troubleshooting tips
 
@@ -526,7 +515,7 @@ System.out.println(response.output());
 ✅ **Flexible region** deployment - Choose your optimal region   
 ✅ **New v1 API** support - Future-proof, no version management needed  
 ✅ **Automatic deployment** - Model ready to use immediately  
-✅ **Multi-language examples** - Python, TypeScript/Node.js, Go and Java clients  
+✅ **Multi-language examples** - Python, TypeScript/Node.js, Go, .NET and Java clients  
 ✅ **Two authentication methods** - API keys (quick start) + EntraID (production-ready)  
 ✅ **Unique resource naming** - No conflicts with existing resources  
 
@@ -567,7 +556,7 @@ System.out.println(response.output());
 │       ├── responses_example_entra.ts   # EntraID authentication
 │       ├── package.json                 # Node.js dependencies
 │       └── tsconfig.json                # TypeScript configuration
-├── CLIENT_README.md           # Detailed setup guide (Python & TypeScript)
+├── CLIENT_README.md           # Detailed setup guide for all languages
 ├── validate.ps1              # PowerShell validation script
 └── validate.sh               # Bash validation script
 ```
@@ -632,7 +621,7 @@ gptModelName: 'gpt-5'           // Needs approval
 ✅ **Latest model** - GPT-5-mini with reasoning capabilities  
 ✅ **Future-proof** - Uses new v1 API, no version management  
 ✅ **Production-ready** - GlobalStandard SKU, EntraID auth, proper naming  
-✅ **Complete examples** - Python, TypeScript, Go and Java with error handling  
+✅ **Complete examples** - Python, TypeScript, Go, .NET and Java with error handling  
 ✅ **Secure by default** - Supports keyless authentication with Azure Identity  
 ✅ **Easy cleanup** - Remove everything with `azd down`  
 

@@ -17,6 +17,12 @@ src/python/*.pyc
 src/python/*.pyo
 .venv/
 
+# Java
+src/java/target/
+
+# Go
+src/go/**/*.exe
+
 # Azure
 .azure/
 

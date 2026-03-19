@@ -1,6 +1,6 @@
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.*
+#:package OpenAI@2.9.1
 #:package Azure.Identity@1.*
 
 // Azure OpenAI GPT-5-mini - Responses API with Entra Authentication
@@ -33,13 +33,13 @@ var clientOptions = new OpenAIClientOptions
 };
 
 // Initialize OpenAI Response client with Azure endpoint and Entra authentication
-var responsesClient = new ResponsesClient("gpt-5-mini", policy, clientOptions);
+var responsesClient = new ResponsesClient(policy, clientOptions);
 
 // Example 1: Simple text input with Responses API
 Console.WriteLine("Example 1: Simple text input");
 Console.WriteLine();
 
-ResponseResult response1 = await responsesClient.CreateResponseAsync(userInputText: "Explain quantum computing in simple terms");
+ResponseResult response1 = await responsesClient.CreateResponseAsync("gpt-5-mini", "Explain quantum computing in simple terms", null);
 
 Console.WriteLine($"Response: {response1.GetOutputText()}");
 Console.WriteLine($"Status: {response1.Status}");
@@ -56,12 +56,12 @@ var messages = new List<ResponseItem>
     ResponseItem.CreateSystemMessageItem("You are an Azure cloud architect."),
     ResponseItem.CreateUserMessageItem("Design a scalable web application architecture.")
 };
-var createResponseOptions = new CreateResponseOptions(inputItems: messages)
+var createResponseOptions = new CreateResponseOptions("gpt-5-mini", messages)
 {
     MaxOutputTokenCount = 1000
 };
 
-ResponseResult response2 = await responsesClient.CreateResponseAsync(options: createResponseOptions);
+ResponseResult response2 = await responsesClient.CreateResponseAsync(createResponseOptions);
 
 Console.WriteLine($"Response: {response2.GetOutputText()}");
 Console.WriteLine($"Status: {response2.Status}");

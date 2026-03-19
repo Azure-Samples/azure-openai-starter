@@ -1,6 +1,6 @@
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.*
+#:package OpenAI@2.9.1
 
 // Azure OpenAI GPT-5-mini - Responses API Example
 // This demonstrates the new Responses API with GPT-5-mini reasoning model.
@@ -30,13 +30,13 @@ var clientOptions = new OpenAIClientOptions
 };
 
 // Initialize OpenAI Response client with Azure endpoint
-var responsesClient = new ResponsesClient("gpt-5-mini", credential, clientOptions);
+var responsesClient = new ResponsesClient(credential, clientOptions);
 
 // Example 1: Simple text input
 Console.WriteLine("Example 1: Simple text input");
 Console.WriteLine();
 
-ResponseResult response1 = await responsesClient.CreateResponseAsync(userInputText: "Explain quantum computing in simple terms");
+ResponseResult response1 = await responsesClient.CreateResponseAsync("gpt-5-mini", "Explain quantum computing in simple terms", null);
 
 Console.WriteLine($"Response: {response1.GetOutputText()}");
 Console.WriteLine($"Status: {response1.Status}");
@@ -54,12 +54,12 @@ var messages = new List<ResponseItem>
     ResponseItem.CreateUserMessageItem("Design a scalable web application architecture.")
 };
 
-var createResponseOptions2 = new CreateResponseOptions(inputItems: messages)
+var createResponseOptions2 = new CreateResponseOptions("gpt-5-mini", messages)
 {
     MaxOutputTokenCount = 1000
 };
 
-ResponseResult response2 = await responsesClient.CreateResponseAsync(options: createResponseOptions2);
+ResponseResult response2 = await responsesClient.CreateResponseAsync(createResponseOptions2);
 
 Console.WriteLine($"Response: {response2.GetOutputText()}");
 Console.WriteLine($"Status: {response2.Status}");

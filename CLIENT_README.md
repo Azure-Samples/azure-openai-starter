@@ -1,6 +1,6 @@
-# Azure OpenAI Starter Python and TypeScript Examples
+# Azure OpenAI Starter - Client Examples
 
-Complete guide to using your deployed Azure OpenAI **GPT-5-mini** model with the **Responses API** in **Python** and **TypeScript/Node.js**.
+Complete guide to using your deployed Azure OpenAI **GPT-5-mini** model with the **Responses API** in **Python**, **TypeScript/Node.js**, **Go**, **.NET** and **Java**.
 
 ## About the Responses API
 
@@ -14,7 +14,7 @@ The Responses API is the newer, cleaner interface designed specifically for GPT-
 ## Prerequisites
 
 ✅ Azure OpenAI GPT-5-mini deployed (run `azd up` first)  
-✅ Python 3.8+ or Node.js 18+ installed  
+✅ Python 3.8+ or Node.js 18+ or Go 1.21+ or .NET 10+ or Java 21+ installed  
 ✅ Azure CLI installed and logged in (`az login`)
 
 ## 🔐 Recommended: Keyless Authentication (Production Ready)
@@ -111,6 +111,30 @@ const response = await client.responses.create({
 console.log(response.output_text);
 ```
 
+### Go Setup & Code
+
+```bash
+# Run with EntraID
+cd src/go/responses_example_entra
+go run .
+```
+
+### .NET Setup & Code
+
+```bash
+# Run with EntraID (requires .NET 10+)
+cd src/dotnet
+dotnet run responses_example_entra.cs
+```
+
+### Java Setup & Code
+
+```bash
+# Run with EntraID (requires Java 21+ and Maven)
+cd src/java
+mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExampleEntra"
+```
+
 **Why EntraID?**
 - ✅ No API keys to manage or rotate
 - ✅ Uses your Azure CLI login or Managed Identity
@@ -203,6 +227,30 @@ const response = await client.responses.create({
 console.log(response.output_text);
 ```
 
+### Go Setup & Code
+
+```bash
+# Run with API key
+cd src/go/responses_example
+go run .
+```
+
+### .NET Setup & Code
+
+```bash
+# Run with API key (requires .NET 10+)
+cd src/dotnet
+dotnet run responses_example.cs
+```
+
+### Java Setup & Code
+
+```bash
+# Run with API key (requires Java 21+ and Maven)
+cd src/java
+mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExample"
+```
+
 </details>
 
 ---
@@ -244,7 +292,7 @@ Sweden is distinctive for its blend of social-democratic institutions and strong
 ✅ **GPT-5-mini (2025-08-07)** - Latest reasoning model from OpenAI  
 ✅ **New v1 API** - No api-version needed, future-proof  
 ✅ **Flexible region** deployment - Choose your optimal region  
-✅ **Standard OpenAI client** - Works with Python and TypeScript  
+✅ **Standard OpenAI client** - Works with Python, TypeScript, Go, .NET and Java  
 ✅ **Minimal dependencies** - Just one package install  
 ✅ **No containers** - Direct API calls, no complex setup  
 
@@ -550,7 +598,7 @@ This template uses the **Responses API**, which provides a cleaner interface opt
 
 ## Next Steps
 
-🔧 **Customize the examples**: Edit `responses_example.py` or `responses_example.ts` for your use case  
+🔧 **Customize the examples**: Edit the example files in `src/` for your use case  
 📚 **Learn more**: [Azure OpenAI documentation](https://learn.microsoft.com/azure/ai-services/openai/)  
 🚀 **Add more models**: Edit `infra/resources.bicep` to deploy additional models  
 ⚡ **Scale up**: Increase capacity or try GPT-5 full model  

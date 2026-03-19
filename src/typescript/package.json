@@ -14,7 +14,7 @@
   "dependencies": {
     "@azure/identity": "^4.0.0",
     "dotenv": "^17.2.3",
-    "openai": "^4.67.1"
+    "openai": "^6.32.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",
