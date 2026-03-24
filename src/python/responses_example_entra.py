@@ -25,7 +25,7 @@ def main():
     # This automatically uses your Azure CLI login, Managed Identity, or other credential sources
     # For production, use a specific credential (e.g. ManagedIdentityCredential) or set
     # AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
-    # https://learn.microsoft.com/azure/developer/python/sdk/authentication/credential-chains
+    # https://aka.ms/azsdk/python/identity/credential-chains#defaultazurecredential-overview
     token_provider = get_bearer_token_provider(
     DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
     )
