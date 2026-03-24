@@ -25,6 +25,9 @@ var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")
 
 // Use DefaultAzureCredential for Entra authentication
 // This automatically uses your Azure CLI login, Managed Identity, or other credential sources
+// For production, use a specific credential (e.g. ManagedIdentityCredential) or set
+// AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
+// https://learn.microsoft.com/dotnet/azure/sdk/authentication/credential-chains
 var credential = new DefaultAzureCredential();
 var policy = new BearerTokenPolicy(credential, "https://cognitiveservices.azure.com/.default");
 var clientOptions = new OpenAIClientOptions

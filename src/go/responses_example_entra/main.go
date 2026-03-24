@@ -26,6 +26,9 @@ func newClientUsingEntraAuthentication(endpoint string) openai.Client {
 
 	// Use DefaultAzureCredential for EntraID authentication
 	// This automatically uses your Azure CLI login, Managed Identity, or other credential sources
+	// For production, use a specific credential (e.g. azidentity.NewManagedIdentityCredential)
+	// or set AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
+	// https://learn.microsoft.com/azure/developer/go/sdk/authentication/credential-chains
 	tokenCredential, err := azidentity.NewDefaultAzureCredential(nil)
 
 	if err != nil {

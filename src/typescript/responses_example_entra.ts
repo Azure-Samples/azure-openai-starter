@@ -23,17 +23,17 @@ async function main(): Promise<void> {
     
     // Use DefaultAzureCredential for EntraID authentication
     // This automatically uses your Azure CLI login, Managed Identity, or other credential sources
+    // For production, use a specific credential (e.g. ManagedIdentityCredential) or set
+    // AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
+    // https://learn.microsoft.com/azure/developer/javascript/sdk/authentication/credential-chains
     const credential = new DefaultAzureCredential();
     const scope = "https://cognitiveservices.azure.com/.default";
     const tokenProvider = getBearerTokenProvider(credential, scope);
-
-    // Get a fresh token directly
-    const tokenResponse = await credential.getToken(scope);
     
     // Initialize OpenAI client with Azure endpoint and the token (v1 API path)
     const client = new OpenAI({
         baseURL: `${endpoint.replace(/\/+$/, '')}/openai/v1/`,
-        apiKey: await tokenProvider()
+        apiKey: tokenProvider
     });
     
     // Example 1: Simple text input with Responses API
