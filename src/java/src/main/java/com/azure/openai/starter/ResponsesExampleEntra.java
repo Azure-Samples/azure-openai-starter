@@ -33,7 +33,7 @@ public class ResponsesExampleEntra {
         // Use DefaultAzureCredential for EntraID authentication
         // For production, use a specific credential (e.g. ManagedIdentityCredential) or set
         // AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
-        // https://learn.microsoft.com/azure/developer/java/sdk/authentication/credential-chains
+        // https://aka.ms/azsdk/java/identity/credential-chains#defaultazurecredential-overview
         Supplier<String> bearerTokenSupplier = AuthenticationUtil.getBearerTokenSupplier(
                 new DefaultAzureCredentialBuilder().build(), "https://cognitiveservices.azure.com/.default");
 
