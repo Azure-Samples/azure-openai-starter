@@ -1,6 +1,6 @@
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.9.1
+#:package OpenAI@2.13.0
 
 // Azure OpenAI GPT-5-mini - Responses API Example
 // This demonstrates the new Responses API with GPT-5-mini reasoning model.
@@ -24,7 +24,7 @@ var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")
 
 // Use ApiKeyCredential for API key authentication
 var credential = new ApiKeyCredential(apiKey);
-var clientOptions = new OpenAIClientOptions
+var clientOptions = new ResponsesClientOptions
 {
     Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
 };

@@ -1,6 +1,6 @@
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.9.1
+#:package OpenAI@2.13.0
 #:package Azure.Identity@1.*
 
 // Azure OpenAI GPT-5-mini - Responses API with Entra Authentication
@@ -30,7 +30,7 @@ var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")
 // https://aka.ms/azsdk/net/identity/credential-chains#defaultazurecredential-overview
 var credential = new DefaultAzureCredential();
 var policy = new BearerTokenPolicy(credential, "https://cognitiveservices.azure.com/.default");
-var clientOptions = new OpenAIClientOptions
+var clientOptions = new ResponsesClientOptions
 {
     Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
 };
