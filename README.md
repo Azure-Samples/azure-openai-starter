@@ -230,10 +230,13 @@ using OpenAI.Responses;
 
 #pragma warning disable OPENAI001
 
+var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")
+               ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
+
 var policy = new BearerTokenPolicy(new DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default");
 var clientOptions = new ResponsesClientOptions
 {
-    Endpoint = new Uri($"{Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")!.TrimEnd('/')}/openai/v1/")
+    Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
 };
 
 var responsesClient = new ResponsesClient(policy, clientOptions);
@@ -447,10 +450,15 @@ using OpenAI.Responses;
 
 #pragma warning disable OPENAI001
 
-var credential = new ApiKeyCredential(Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY"));
+var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")
+               ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
+var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")
+             ?? throw new InvalidOperationException("AZURE_OPENAI_API_KEY environment variable is required");
+
+var credential = new ApiKeyCredential(apiKey);
 var clientOptions = new ResponsesClientOptions
 {
-    Endpoint = new Uri($"{Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT").TrimEnd('/')}/openai/v1/")
+    Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
 };
 var responsesClient = new ResponsesClient(credential, clientOptions);
 
