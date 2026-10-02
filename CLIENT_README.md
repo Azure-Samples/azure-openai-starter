@@ -1,608 +1,239 @@
 # Azure OpenAI Starter - Client Examples
 
-Complete guide to using your deployed Azure OpenAI **GPT-5-mini** model with the **Responses API** in **Python**, **TypeScript/Node.js**, **Go**, **.NET** and **Java**.
-
-## About the Responses API
-
-The Responses API is the newer, cleaner interface designed specifically for GPT-5-mini and other reasoning models. It provides:
-
-- **Simpler syntax**: Uses `input` parameter instead of `messages`
-- **Better for reasoning**: Optimized for GPT-5-mini's internal reasoning capabilities
-- **Cleaner output**: Direct access to response text via `output_text`
-- **Token visibility**: Clear visibility into reasoning tokens vs output tokens
+Use the **GPT-6.1 Sol (`gpt-6.1-sol`, version `2026-09-29`)** deployment with the **Responses v1 API** in Python, TypeScript, Go, .NET or Java.
 
 ## Prerequisites
 
-✅ Azure OpenAI GPT-5-mini deployed (run `azd up` first)  
-✅ Python 3.8+ or Node.js 18+ or Go 1.21+ or .NET 10+ or Java 21+ installed  
-✅ Azure CLI installed and logged in (`az login`)
+Deploy the [Bicep template](./infra/main.bicep) with `azd up`, then choose a language:
 
-## 🔐 Recommended: Keyless Authentication (Production Ready)
+| Language | Requirement | Dependencies |
+|---|---|---|
+| Python | Python 3.10+ | [requirements.txt](./src/python/requirements.txt) |
+| TypeScript | Node.js 24+ and npm | [package.json](./src/typescript/package.json) |
+| Go | Go 1.25.1+ | [API-key module](./src/go/responses_example/go.mod), [Entra module](./src/go/responses_example_entra/go.mod) |
+| .NET | .NET 10 SDK | [SDK configuration](./src/dotnet/global.json), package directives in each sample |
+| Java | JDK 21+ and Maven | [pom.xml](./src/java/pom.xml) |
 
-**This is the secure, production-ready approach. No API keys to manage!**
+For the cross-language test suite, install **all five** toolchains. The Python interpreter running the suite must have the Python sample dependencies installed. Builds restore normal SDK/package dependencies but the test runner does not install missing toolchains.
 
-<details>
-<summary><strong>Click to expand Keyless setup and code examples</strong></summary>
+## Configure Authentication
 
-### Setup Steps
+Set the endpoint and deployment name from the same azd environment that you provisioned.
+
+### Bash / zsh
 
 ```bash
-# 1. Get your Azure OpenAI endpoint
-azd env get-values | Select-String 'AZURE_OPENAI_ENDPOINT'
-
-# 2. Set environment variable
-$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
-
-# Note: The "Cognitive Services User" role is automatically assigned to your
-# account during "azd up", so no manual role assignment is needed.
+export AZURE_OPENAI_ENDPOINT="$(azd env get-value AZURE_OPENAI_ENDPOINT)"
+export AZURE_OPENAI_GPT_DEPLOYMENT_NAME="$(azd env get-value AZURE_OPENAI_GPT_DEPLOYMENT_NAME)"
+export AZURE_TENANT_ID="$(az account show --query tenantId --output tsv)"
 ```
 
-### Python Setup & Code
+### PowerShell
+
+```powershell
+$env:AZURE_OPENAI_ENDPOINT = azd env get-value AZURE_OPENAI_ENDPOINT
+$env:AZURE_OPENAI_GPT_DEPLOYMENT_NAME = azd env get-value AZURE_OPENAI_GPT_DEPLOYMENT_NAME
+$env:AZURE_TENANT_ID = az account show --query tenantId --output tsv
+```
+
+### Microsoft Entra ID (Recommended)
+
+Run `az login` with the intended account and subscription. The examples use `DefaultAzureCredential` and the `https://cognitiveservices.azure.com/.default` scope. You do not need an API key.
+
+The template grants the deploying user **Cognitive Services User** on the new account. Additional users, service principals or managed identities need their own data-plane role assignment. Allow time for RBAC changes to propagate.
+
+For production, replace the development credential chain with the appropriate specific credential, such as `ManagedIdentityCredential`. See the credential guidance linked in each Entra source file.
+
+### API Key (Development)
+
+After setting the endpoint and deployment name, retrieve a single key without printing it:
 
 ```bash
-# Install dependencies
+export AZURE_OPENAI_API_KEY="$(az cognitiveservices account keys list \
+  --name "$(azd env get-value AZURE_OPENAI_NAME)" \
+  --resource-group "$(azd env get-value AZURE_RESOURCE_GROUP)" \
+  --query key1 --output tsv)"
+```
+
+```powershell
+$env:AZURE_OPENAI_API_KEY = az cognitiveservices account keys list `
+  --name (azd env get-value AZURE_OPENAI_NAME) `
+  --resource-group (azd env get-value AZURE_RESOURCE_GROUP) `
+  --query key1 --output tsv
+```
+
+Never put keys in source control. Python and TypeScript also support a local `.env` file; explicitly set process environment variables take precedence. Go, .NET and Java read process environment variables directly.
+
+## Install and Run
+
+Start each set of commands from the repository root, using either the Entra or API-key command.
+
+### Python
+
+Use a virtual environment if desired, then install dependencies into the interpreter that will run the sample:
+
+```bash
+python -m pip install -r src/python/requirements.txt
 cd src/python
-pip install -r requirements.txt
-
-# Run with EntraID
 python responses_example_entra.py
+# Or:
+python responses_example.py
 ```
 
-**Python Code Example:**
-```python
-from openai import OpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-import os
+Sources: [Entra](./src/python/responses_example_entra.py), [API key](./src/python/responses_example.py), [shared settings and response checks](./src/python/sample_options.py).
 
-# Use DefaultAzureCredential for EntraID authentication
-token_provider = get_bearer_token_provider(
-    DefaultAzureCredential(),
-    "https://cognitiveservices.azure.com/.default"
-)
-
-# Initialize OpenAI client with Azure endpoint and EntraID
-client = OpenAI(
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
-    api_key=token_provider
-)
-
-# Use the Responses API
-response = client.responses.create(
-    model="gpt-5-mini",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
-)
-print(response.output_text)
-```
-
-### TypeScript Setup & Code
+### TypeScript
 
 ```bash
-# Install dependencies
 cd src/typescript
-npm install
-
-# Run with EntraID
-tsx responses_example_entra.ts
+npm ci
+npm run build
+npm run start:entra
+# Or:
+npm start
 ```
 
-**TypeScript Code Example:**
-```typescript
-import OpenAI from "openai";
-import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+Sources: [Entra](./src/typescript/responses_example_entra.ts), [API key](./src/typescript/responses_example.ts), [shared settings and response checks](./src/typescript/sample_options.ts).
 
-// Use Azure Identity for authentication
-const credential = new DefaultAzureCredential();
-const scope = "https://cognitiveservices.azure.com/.default";
-const tokenProvider = getBearerTokenProvider(credential, scope);
+### Go
 
-// Initialize OpenAI client with Azure endpoint and EntraID
-const client = new OpenAI({
-    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
-    apiKey:  await tokenProvider()
-});
-
-// Use the Responses API
-const response = await client.responses.create({
-    model: "gpt-5-mini",
-    input: "Explain quantum computing in simple terms",
-    max_output_tokens: 1000
-});
-console.log(response.output_text);
-```
-
-### Go Setup & Code
+Each authentication example is an independent module:
 
 ```bash
-# Run with EntraID
 cd src/go/responses_example_entra
 go run .
 ```
 
-### .NET Setup & Code
+Or, from the repository root:
 
 ```bash
-# Run with EntraID (requires .NET 10+)
-cd src/dotnet
-dotnet run responses_example_entra.cs
-```
-
-### Java Setup & Code
-
-```bash
-# Run with EntraID (requires Java 21+ and Maven)
-cd src/java
-mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExampleEntra"
-```
-
-**Why EntraID?**
-- ✅ No API keys to manage or rotate
-- ✅ Uses your Azure CLI login or Managed Identity
-- ✅ Better security with Azure RBAC
-- ✅ Automatic token refresh
-- ✅ Works with service principals and managed identities
-- ✅ Enterprise-grade security compliance
-
-</details>
-
----
-
-## Alternative: API Key Authentication (Quick Start)
-
-**For quick testing and development only. Not recommended for production.**
-
-<details>
-<summary><strong>Click to expand API key setup and code examples</strong></summary>
-
-### Setup Steps
-
-```bash
-# 1. Get all deployment details
-azd env get-values
-
-# 2. Get your API key (use values from step 1)
-az cognitiveservices account keys list --name AZURE_OPENAI_NAME --resource-group rg-AZURE_ENV_NAME
-
-# 3. Set environment variables
-$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
-$env:AZURE_OPENAI_API_KEY="your-api-key-here"
-```
-
-**Don't have Azure CLI?** Install it: https://learn.microsoft.com/cli/azure/install-azure-cli
-
-### Python Setup & Code
-
-```bash
-# Install dependencies
-cd src/python
-pip install -r requirements.txt
-
-# Run with API key
-python responses_example.py
-```
-
-**Python Code Example:**
-```python
-from openai import OpenAI
-import os
-
-client = OpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/"
-)
-
-response = client.responses.create(
-    model="gpt-5-mini",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
-)
-print(response.output_text)
-```
-
-### TypeScript Setup & Code
-
-```bash
-# Install dependencies
-cd src/typescript
-npm install
-
-# Run with API key
-npm start
-```
-
-**TypeScript Code Example:**
-```typescript
-import OpenAI from 'openai';
-
-const client = new OpenAI({
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
-    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`
-});
-
-const response = await client.responses.create({
-    model: "gpt-5-mini",
-    input: "Explain quantum computing in simple terms",
-    max_output_tokens: 1000
-});
-console.log(response.output_text);
-```
-
-### Go Setup & Code
-
-```bash
-# Run with API key
 cd src/go/responses_example
 go run .
 ```
 
-### .NET Setup & Code
+Sources: [Entra](./src/go/responses_example_entra/main.go), [API key](./src/go/responses_example/main.go).
+
+### .NET
+
+These are .NET 10 file-based applications; no project scaffolding is needed.
 
 ```bash
-# Run with API key (requires .NET 10+)
 cd src/dotnet
+dotnet run responses_example_entra.cs
+# Or:
 dotnet run responses_example.cs
 ```
 
-### Java Setup & Code
+Sources: [Entra](./src/dotnet/responses_example_entra.cs), [API key](./src/dotnet/responses_example.cs), [SDK prerequisites](./src/dotnet/README.md).
+
+The SDK's extensible `ResponseReasoningEffortLevel` accepts the verified `xhigh` and `max` string values even when a named static constant is not available.
+
+### Java
 
 ```bash
-# Run with API key (requires Java 21+ and Maven)
 cd src/java
-mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExample"
+mvn compile exec:java "-Dexec.mainClass=com.azure.openai.starter.ResponsesExampleEntra"
+# Or:
+mvn compile exec:java "-Dexec.mainClass=com.azure.openai.starter.ResponsesExample"
 ```
 
-</details>
+Sources: [Entra](./src/java/src/main/java/com/azure/openai/starter/ResponsesExampleEntra.java), [API key](./src/java/src/main/java/com/azure/openai/starter/ResponsesExample.java), [shared settings and response checks](./src/java/src/main/java/com/azure/openai/starter/SampleOptions.java).
 
----
+The samples use a deployment-name string rather than an SDK constant tied to a different model. Java extracts the output text rather than printing the SDK's internal response-object representation.
 
-## Example Output
+## Select a Reasoning Mode
 
-When you run either example, you should see:
+All ten examples accept the same settings:
 
-```
-🔗 Connecting to: https://openai-xxx.openai.azure.com/openai/v1/
-🤖 Testing GPT-5-mini model...
-------------------------------------------------------------
-✅ Success! GPT-5-mini response:
---------------------------------------------------
-Hello! I'm GPT-5-mini running on Microsoft Azure. 
+| Setting | Default | Valid values |
+|---|---|---|
+| `AZURE_OPENAI_GPT_DEPLOYMENT_NAME` | `gpt-6.1-sol` | Your nonempty Azure deployment name |
+| `AZURE_OPENAI_REASONING_EFFORT` | `medium` | `low`, `medium`, `high`, `xhigh`, `max` |
+| `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | `16384` | Integer from `16` through `128000` |
 
-Something interesting about Sweden: Sweden has a unique concept called "allemansrätten" (the Right to Roam), which gives everyone the legal right to access and enjoy nature freely - you can walk, camp, pick berries, and mushrooms almost anywhere in the country, as long as you don't disturb wildlife or private property. This reflects Sweden's deep cultural connection to nature and trust-based society.
---------------------------------------------------
-📊 Model: gpt-5-mini-2025-08-07
-📊 Tokens used: 284
-📊 Input tokens: 45
-📊 Output tokens: 239
-📊 Reasoning tokens: 156
+For example:
 
-🧠 Testing with a more complex prompt that requires visible output...
-------------------------------------------------------------
-✅ Complex response test:
-------------------------------
-Sweden is distinctive for its blend of social-democratic institutions and strong culture of innovation that has produced globally influential companies. Its unique combination of vast, accessible nature and progressive environmental policies fosters sustainability and a high quality of life.
-------------------------------
-📊 Complex test tokens: 396
-📊 Complex reasoning tokens: 256
-
-🎉 GPT-5-mini is working perfectly!
+```bash
+export AZURE_OPENAI_REASONING_EFFORT=high
+export AZURE_OPENAI_MAX_OUTPUT_TOKENS=32768
 ```
 
-## Key Features
-
-✅ **GPT-5-mini (2025-08-07)** - Latest reasoning model from OpenAI  
-✅ **New v1 API** - No api-version needed, future-proof  
-✅ **Flexible region** deployment - Choose your optimal region  
-✅ **Standard OpenAI client** - Works with Python, TypeScript, Go, .NET and Java  
-✅ **Minimal dependencies** - Just one package install  
-✅ **No containers** - Direct API calls, no complex setup  
-
-## Code Examples
-
-<details>
-<summary><strong>Click to expand additional code examples</strong></summary>
-
-### 🔐 EntraID Authentication (Recommended)
-
-**Python - EntraID with Responses API:**
-```python
-from openai import OpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-import os
-
-# Use DefaultAzureCredential for EntraID authentication
-token_provider = get_bearer_token_provider(
-    DefaultAzureCredential(),
-    "https://cognitiveservices.azure.com/.default"
-)
-
-# Initialize OpenAI client with Azure endpoint and EntraID authentication
-client = OpenAI(
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
-    api_key=token_provider
-)
-
-# Use the Responses API normally
-response = client.responses.create(
-    model="gpt-5-mini",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
-)
-print(response.output_text)
+```powershell
+$env:AZURE_OPENAI_REASONING_EFFORT = "high"
+$env:AZURE_OPENAI_MAX_OUTPUT_TOKENS = "32768"
 ```
 
-**TypeScript - EntraID with Responses API:**
-```typescript
-import OpenAI from "openai";
-import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+GPT-6.1 Sol does **not** support the `none` or `minimal` reasoning levels. Invalid settings fail locally before authentication or HTTP requests.
 
-// Use Azure Identity for authentication
-const credential = new DefaultAzureCredential();
-const scope = "https://cognitiveservices.azure.com/.default";
-const tokenProvider = getBearerTokenProvider(credential, scope);
+The token budget includes both internal reasoning and visible output. A larger limit is a ceiling, not a promise of completion or a fixed token charge. The model may need more reasoning tokens for harder prompts, particularly at `xhigh` or `max`.
 
-// Use standard OpenAI client with Azure endpoint and token provider
-const client = new OpenAI({
-    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
-    apiKey: tokenProvider as any
-});
+The v1 client URL is always `<account-endpoint>/openai/v1/`; the examples normalize trailing slashes. No `api-version` query parameter is required.
 
-// Use the Responses API normally
-const response = await client.responses.create({
-    model: "gpt-5-mini",
-    input: "Explain quantum computing in simple terms",
-    max_output_tokens: 1000
-});
-console.log(response.output_text);
+## Request Formats and Output
+
+Each program sends:
+
+1. **Simple text:** explain quantum computing in at most 150 words.
+2. **Conversation:** a system message specifying an Azure cloud architect, followed by a request for a scalable architecture in at most 150 words.
+
+The .NET SDK serializes the first request as a single user message; the other SDKs use the string input form. Both are supported by the Responses API.
+
+Output looks like the following; actual answers and token counts vary:
+
+```text
+Deployment: gpt-6.1-sol; reasoning effort: medium
+Example 1: Simple text input
+Response: <model-generated answer>
+Status: completed
+Reasoning tokens: <count>
+Output tokens: <count, including reasoning>
 ```
 
----
+The process exits unsuccessfully on an API error, an incomplete response, empty output text or missing usage. A token-limit cutoff must not be mistaken for a successful model test.
 
-### API Key Authentication (Quick Start)
+## Run the Test Matrix
 
-<details>
-<summary>Click to expand API key code examples</summary>
+From the repository root:
 
-### Python - Basic Responses API
-```python
-from openai import OpenAI
-import os
-
-client = OpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}/openai/v1/"
-)
-
-response = client.responses.create(
-    model="gpt-5-mini",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
-)
-print(response.output_text)
+```bash
+python -m unittest discover -s tests -v
 ```
 
-### TypeScript - Basic Responses API
-```typescript
-import OpenAI from 'openai';
+The [test suite](./tests/test_samples.py) builds all five languages and runs the actual clients against a local mock Responses endpoint. It checks request paths, authentication headers, model/deployment names, all reasoning levels, token limits, both input formats and failure behavior. Invalid configuration is checked for both authentication entry points.
 
-const client = new OpenAI({
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
-    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}/openai/v1/`
-});
+To verify Azure behavior, use a dedicated deployment, sign in with Azure CLI, and set the endpoint, deployment and API-key variables above:
 
-const response = await client.responses.create({
-    model: "gpt-5-mini",
-    input: "Explain quantum computing in simple terms",
-    maxOutputTokens: 1000
-});
-console.log(response.outputText);
+```powershell
+$env:AZURE_OPENAI_LIVE_TESTS = "1"
+python -m unittest discover -s tests -k live_matrix -v
 ```
 
-### Python - Conversation Format
-```python
-# The Responses API also supports conversation format
-response = client.responses.create(
-    model="gpt-5-mini",
-    input=[
-        {"role": "system", "content": "You are an Azure cloud architect."},
-        {"role": "user", "content": "Design a scalable web application architecture."}
-    ],
-    max_output_tokens=1000
-)
-print(response.output_text)
+```bash
+AZURE_OPENAI_LIVE_TESTS=1 python -m unittest discover -s tests -k live_matrix -v
 ```
 
-### TypeScript - Conversation Format
-```typescript
-const response = await client.responses.create({
-    model: "gpt-5-mini",
-    input: [
-        { role: "system", content: "You are an Azure cloud architect." },
-        { role: "user", content: "Design a scalable web application architecture." }
-    ],
-    maxOutputTokens: 1000
-});
-console.log(response.outputText);
-```
+This makes **100 billable Responses API calls** across all five languages, API-key and Entra authentication, five reasoning efforts and both request formats. The Entra runs explicitly use `AzureCliCredential` through the normal `DefaultAzureCredential` chain and receive no API key. Live tests are skipped unless explicitly enabled; a skip is not a successful live test.
 
-### Python - Accessing Reasoning Tokens
-```python
-# GPT-5-mini uses internal reasoning - you can see how many reasoning tokens were used
-response = client.responses.create(
-    model="gpt-5-mini",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
-)
-print(response.output_text)
-print(f"Reasoning tokens: {response.usage.output_tokens_details.reasoning_tokens}")
-```
+The runner executes up to five sample processes concurrently. Increase `AZURE_OPENAI_CAPACITY` in the selected azd environment and reprovision if your quota permits and the test deployment needs more throughput. The suite does not deploy, modify or delete cloud resources.
 
-### TypeScript - Accessing Reasoning Tokens
-```typescript
-// GPT-5-mini uses internal reasoning - you can see how many reasoning tokens were used
-const response = await client.responses.create({
-    model: "gpt-5-mini",
-    input: "Explain quantum computing in simple terms",
-    maxOutputTokens: 1000
-});
-console.log(response.outputText);
-console.log(`Reasoning tokens: ${response.usage?.outputTokensDetails?.reasoningTokens}`);
-```
+To test the default client settings separately, use `-k live_default_configuration` instead of `-k live_matrix`.
+This runs all ten clients sequentially with the default `medium` reasoning level and 16,384-token budget, making 20 additional billable calls. Running the entire suite with live tests enabled runs both live checks.
 
-### Python - Accessing Reasoning Tokens
-```python
-# GPT-5-mini uses internal reasoning - you can see the token usage
-response = client.responses.create(
-    model="gpt-5-mini",
-    input="Solve this step by step: 15 + 27 - 8 = ?",
-    max_output_tokens=500
-)
-
-# Access reasoning and output tokens
-print(f"Response: {response.output_text}")
-print(f"Reasoning tokens: {response.usage.reasoning_tokens}")
-print(f"Output tokens: {response.usage.output_tokens}")
-print(f"Total tokens: {response.usage.total_tokens}")
-```
-
-### TypeScript - Accessing Reasoning Tokens
-```typescript
-// GPT-5-mini uses internal reasoning - you can see the token usage
-const response = await client.responses.create({
-    model: "gpt-5-mini",
-    input: "Solve this step by step: 15 + 27 - 8 = ?",
-    max_output_tokens: 500
-});
-
-// Access reasoning and output tokens
-console.log(`Response: ${response.output_text}`);
-console.log(`Reasoning tokens: ${response.usage?.reasoning_tokens}`);
-console.log(`Output tokens: ${response.usage?.output_tokens}`);
-console.log(`Total tokens: ${response.usage?.total_tokens}`);
-```
-
-### Python - Multi-Turn Conversation
-```python
-# Build a conversation with Responses API
-messages = [
-    {"role": "system", "content": "You are a helpful coding assistant."},
-    {"role": "user", "content": "Write a Python function to calculate factorial"}
-]
-
-response = client.responses.create(
-    model="gpt-5-mini",
-    input=messages,
-    max_output_tokens=400
-)
-
-# Add assistant's response to conversation
-messages.append({"role": "assistant", "content": response.output_text})
-
-# Continue the conversation
-messages.append({"role": "user", "content": "Now optimize it with memoization"})
-
-response2 = client.responses.create(
-    model="gpt-5-mini",
-    input=messages,
-    max_output_tokens=400
-)
-print(response2.output_text)
-```
-
-### TypeScript - Multi-Turn Conversation
-```typescript
-// Build a conversation with Responses API
-const messages: Array<{role: string, content: string}> = [
-    { role: "system", content: "You are a helpful coding assistant." },
-    { role: "user", content: "Write a TypeScript function to calculate factorial" }
-];
-
-const response = await client.responses.create({
-    model: "gpt-5-mini",
-    input: messages,
-    max_output_tokens: 400
-});
-
-// Add assistant's response to conversation
-messages.push({ role: "assistant", content: response.output_text ?? "" });
-
-// Continue the conversation
-messages.push({ role: "user", content: "Now optimize it with memoization" });
-
-const response2 = await client.responses.create({
-    model: "gpt-5-mini",
-    input: messages,
-    max_output_tokens: 400
-});
-console.log(response2.output_text);
-```
-
-</details>
-
----
+Coverage is limited to the starter's non-streaming Responses API examples. Streaming, tool calling, Chat Completions, Batch and production managed-identity hosting are not implemented or certified by this matrix.
 
 ## Troubleshooting
 
-### EntraID Authentication Issues
+| Symptom | Check |
+|---|---|
+| Missing or invalid environment variable | Set it in the shell that starts the program. An explicitly empty value is invalid, not a request for a default. |
+| Deployment/model not found | Confirm `AZURE_OPENAI_GPT_DEPLOYMENT_NAME` matches the deployment output, not an old GPT-5-mini deployment name. Changing client configuration does not deploy a model. |
+| `Could not obtain the account information` immediately after creation | The data-plane account information may still be propagating, especially when reusing a recently deleted account name. Confirm provisioning succeeded and retry after propagation; use a new environment name for isolated tests. |
+| 401 or 403 with Entra | Check `az account show`, tenant selection, data-plane RBAC and propagation time. An Azure management role alone does not grant model-inference access. |
+| Credential chain cannot get a token | Run `az login`. Check the identity guidance linked in the relevant Entra example. |
+| API-key authentication fails | Retrieve `key1` with `--query key1 --output tsv`; make sure local authentication is enabled on that account. |
+| `Response did not complete` | Inspect the status/details. For a token-limit cutoff, raise `AZURE_OPENAI_MAX_OUTPUT_TOKENS` or reduce prompt complexity/reasoning effort. Other failures need their underlying cause resolved. |
+| 429 / rate limit | Reduce concurrency, wait for the quota window, or increase deployment capacity within your subscription quota. |
+| Model unavailable or quota exceeded during deployment | Select a region offered by the template with model access and free GlobalStandard quota. Consult the [model catalog](https://ai.azure.com/catalog/models/gpt-6.1-sol). |
+| Network access denied | Use a permitted network or the resource's private connectivity path. Do not disable network controls to bypass the error. |
 
-**❌ "401 PermissionDenied" with EntraID**  
-→ Assign the "Cognitive Services OpenAI User" role (see setup instructions above)  
-→ Verify you're logged in: `az account show`  
-→ Try logging in again: `az login`
-
-**❌ "DefaultAzureCredential failed to retrieve a token"**  
-→ Ensure Azure CLI is installed and you're logged in: `az login`  
-→ Check you have access to the subscription: `az account list`
-
-### API Key Authentication Issues
-
-**❌ "Missing environment variables"**  
-→ Run `azd env get-values` to get your endpoint  
-→ Get API key: `az cognitiveservices account keys list --name YOUR_RESOURCE_NAME --resource-group rg-YOUR_ENV_NAME`
-
-**❌ "Invalid request" or 401 errors with API key**  
-→ Verify your API key is correct  
-→ Check endpoint URL includes trailing slash: `https://openai-xxx.openai.azure.com/`
-
-### General Issues
-
-**❌ "Model not found"**  
-→ Ensure deployment completed: `azd env get-values` should show `AZURE_OPENAI_GPT_DEPLOYMENT_NAME=gpt-5-mini`  
-→ Check deployment status in Azure portal
-
-**❌ "Rate limit exceeded"**  
-→ Default capacity is 10K tokens per minute  
-→ Wait and retry, or increase capacity in Azure portal
-
-## Why the New v1 API?
-
-This template uses Azure OpenAI's **new v1 API endpoint** which:
-
-✅ Uses standard `OpenAI()` client instead of `AzureOpenAI()`  
-✅ No `api_version` parameter needed - future-proof  
-✅ Same client code works for both OpenAI and Azure OpenAI  
-✅ Automatic compatibility with latest OpenAI features  
-✅ Simplified authentication and configuration  
-
-## About the Responses API
-
-This template uses the **Responses API**, which provides a cleaner interface optimized for GPT-5-mini reasoning models:
-
-**Key Benefits:**
-- ✅ Simpler interface - direct `input` parameter instead of message formatting
-- ✅ Direct access to reasoning tokens via `response.usage.output_tokens_details.reasoning_tokens`
-- ✅ Supports both simple text and conversation format
-- ✅ Designed for reasoning models like GPT-5-mini
-- ✅ Cleaner response structure with `output_text` property
-
-**Important:** Use `max_output_tokens=1000` (not 50-200) to account for GPT-5-mini's internal reasoning process. The model uses reasoning tokens internally before generating the final output.
-
-## Next Steps
-
-🔧 **Customize the examples**: Edit the example files in `src/` for your use case  
-📚 **Learn more**: [Azure OpenAI documentation](https://learn.microsoft.com/azure/ai-services/openai/)  
-🚀 **Add more models**: Edit `infra/resources.bicep` to deploy additional models  
-⚡ **Scale up**: Increase capacity or try GPT-5 full model  
-
----
-
-**🎉 You're now running GPT-5-mini on Azure!** Experience the future of AI reasoning.
+For additional features, see the [Azure Responses API guide](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/responses) and [GPT-6.1 Sol model reference](https://developers.openai.com/api/docs/models/gpt-6.1-sol).

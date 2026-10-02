@@ -17,12 +17,13 @@ param sku string = 'S0'
 param deployGptModel bool = true
 
 @description('GPT model to deploy')
-param gptModelName string = 'gpt-5-mini'
+param gptModelName string = 'gpt-6.1-sol'
 
 @description('GPT model version')
-param gptModelVersion string = '2025-08-07'
+param gptModelVersion string = '2026-09-29'
 
 @description('GPT deployment capacity')
+@minValue(1)
 param gptCapacity int = 10
 
 @description('Principal ID of the deploying user. If provided, assigns Cognitive Services User role.')
@@ -55,7 +56,7 @@ module openai 'br/public:avm/res/cognitive-services/account:0.13.2' = {
         principalType: 'User'
       }
     ] : []
-    deployments: [
+    deployments: deployGptModel ? [
       {
         name: gptModelName
         model: {
@@ -68,7 +69,7 @@ module openai 'br/public:avm/res/cognitive-services/account:0.13.2' = {
           capacity: gptCapacity
         }
       }
-    ]
+    ] : []
   }
 }
 

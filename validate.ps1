@@ -1,87 +1,52 @@
-# Validation script for Azure OpenAI azd template
-# PowerShell version
+Set-StrictMode -Version Latest
+$ErrorActionPreference = "Stop"
 
-Write-Host "🔍 Validating Azure OpenAI azd template..." -ForegroundColor Cyan
-
-# Check if azd is installed
+Write-Host "Validating Azure OpenAI GPT-6.1 Sol template..." -ForegroundColor Cyan
+Push-Location $PSScriptRoot
 try {
+    foreach ($command in @("azd", "az")) {
+        if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
+            throw "Required command not found: $command"
+        }
+    }
     azd version | Out-Null
-    Write-Host "✅ Azure Developer CLI (azd) is installed" -ForegroundColor Green
-} catch {
-    Write-Host "❌ Azure Developer CLI (azd) is not installed" -ForegroundColor Red
-    Write-Host "💡 Install it from: https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd" -ForegroundColor Yellow
-    exit 1
-}
-
-# Check if azure.yaml exists
-if (-not (Test-Path "azure.yaml")) {
-    Write-Host "❌ azure.yaml not found" -ForegroundColor Red
-    exit 1
-}
-
-# Check if infra directory exists
-if (-not (Test-Path "infra" -PathType Container)) {
-    Write-Host "❌ infra directory not found" -ForegroundColor Red
-    exit 1
-}
-
-# Check if main.bicep exists
-if (-not (Test-Path "infra/main.bicep")) {
-    Write-Host "❌ infra/main.bicep not found" -ForegroundColor Red
-    exit 1
-}
-
-# Check if main.parameters.json exists
-if (-not (Test-Path "infra/main.parameters.json")) {
-    Write-Host "❌ infra/main.parameters.json not found" -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "✅ All required infra files found" -ForegroundColor Green
-
-# Check source examples
-$sourceChecks = @(
-    "src/python/responses_example.py",
-    "src/python/responses_example_entra.py",
-    "src/typescript/responses_example.ts",
-    "src/typescript/responses_example_entra.ts",
-    "src/go/responses_example/main.go",
-    "src/go/responses_example_entra/main.go",
-    "src/dotnet/responses_example.cs",
-    "src/dotnet/responses_example_entra.cs",
-    "src/java/pom.xml"
-)
-
-$allSourcesFound = $true
-foreach ($file in $sourceChecks) {
-    if (-not (Test-Path $file)) {
-        Write-Host "❌ $file not found" -ForegroundColor Red
-        $allSourcesFound = $false
+    if ($LASTEXITCODE -ne 0) {
+        throw "Azure Developer CLI (azd) failed"
     }
-}
 
-if ($allSourcesFound) {
-    Write-Host "✅ All source examples found" -ForegroundColor Green
-} else {
-    Write-Host "⚠️  Some source examples are missing" -ForegroundColor Yellow
-}
-
-# Validate Bicep template if Azure CLI is available
-try {
-    az version | Out-Null
-    Write-Host "🔧 Validating Bicep template..." -ForegroundColor Cyan
-    
-    $buildResult = az bicep build --file infra/main.bicep 2>&1
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "✅ Bicep template is valid" -ForegroundColor Green
-    } else {
-        Write-Host "❌ Bicep template validation failed" -ForegroundColor Red
-        Write-Host $buildResult -ForegroundColor Red
-        exit 1
+    $requiredFiles = @(
+        "azure.yaml",
+        "infra\main.bicep",
+        "infra\resources.bicep",
+        "infra\main.parameters.json",
+        "src\python\responses_example.py",
+        "src\python\responses_example_entra.py",
+        "src\python\sample_options.py",
+        "src\typescript\responses_example.ts",
+        "src\typescript\responses_example_entra.ts",
+        "src\typescript\sample_options.ts",
+        "src\go\responses_example\main.go",
+        "src\go\responses_example_entra\main.go",
+        "src\dotnet\responses_example.cs",
+        "src\dotnet\responses_example_entra.cs",
+        "src\java\pom.xml",
+        "src\java\src\main\java\com\azure\openai\starter\ResponsesExample.java",
+        "src\java\src\main\java\com\azure\openai\starter\ResponsesExampleEntra.java",
+        "src\java\src\main\java\com\azure\openai\starter\SampleOptions.java"
+    )
+    foreach ($file in $requiredFiles) {
+        if (-not (Test-Path $file -PathType Leaf)) {
+            throw "Required file not found: $file"
+        }
     }
-} catch {
-    Write-Host "⚠️  Azure CLI not found - skipping Bicep validation" -ForegroundColor Yellow
-}
+    Write-Host "All required infrastructure and source files found" -ForegroundColor Green
 
-Write-Host "🎉 Template validation successful!" -ForegroundColor Green
-Write-Host "🚀 You can now run: azd up" -ForegroundColor Cyan
+    az bicep build --file "infra\main.bicep" --stdout | Out-Null
+    if ($LASTEXITCODE -ne 0) {
+        throw "Bicep template validation failed"
+    }
+    Write-Host "Template validation successful (no resources deployed)." -ForegroundColor Green
+    Write-Host "For client contract tests: python -m unittest discover -s tests -v" -ForegroundColor Cyan
+} finally {
+    Pop-Location
+}

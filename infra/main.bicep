@@ -8,8 +8,8 @@ param environmentName string
 
 @description('Primary location for all resources')
 @allowed([
-  // Regions where gpt-5-mini is available,
-  // see https://learn.microsoft.com/azure/ai-foundry/foundry-models/concepts/models-sold-directly-by-azure?pivots=azure-openai&tabs=global-standard-aoai%2Cstandard-chat-completions%2Cglobal-standard#global-standard-model-availability
+  // GPT-6.1 Sol GlobalStandard availability, verified 2026-10-02.
+  // https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability
   'australiaeast'
   'eastus'
   'eastus2'
@@ -33,6 +33,10 @@ param resourceToken string = toLower(uniqueString(subscription().id, environment
 @description('Principal ID of the deploying user. azd populates this automatically.')
 param principalId string = ''
 
+@description('GPT deployment capacity in thousands of tokens per minute. Subject to regional subscription quota.')
+@minValue(1)
+param gptCapacity int = 10
+
 // Deploy the Azure OpenAI resource
 module openai 'resources.bicep' = {
   name: 'openai'
@@ -41,9 +45,9 @@ module openai 'resources.bicep' = {
     resourceToken: resourceToken
     environmentName: environmentName
     deployGptModel: true
-    gptModelName: 'gpt-5-mini'
-    gptModelVersion: '2025-08-07'
-    gptCapacity: 10
+    gptModelName: 'gpt-6.1-sol'
+    gptModelVersion: '2026-09-29'
+    gptCapacity: gptCapacity
     principalId: principalId
   }
 }

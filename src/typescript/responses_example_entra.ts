@@ -1,25 +1,28 @@
 import "dotenv/config";
 import OpenAI from "openai";
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+import { loadOptions, printResponse } from "./sample_options";
 
 /**
- * Azure OpenAI GPT-5-mini - Responses API with EntraID Authentication
+ * Azure OpenAI GPT-6.1 Sol - Responses API with EntraID Authentication
  * This demonstrates using Azure Identity (EntraID) instead of API keys.
  */
 
 function checkEnvironment(): void {
-    if (!process.env.AZURE_OPENAI_ENDPOINT) {
+    if (!process.env.AZURE_OPENAI_ENDPOINT?.trim()) {
         console.error("Missing AZURE_OPENAI_ENDPOINT environment variable");
         process.exit(1);
     }
 }
 
 async function main(): Promise<void> {
-    console.log("Azure OpenAI GPT-5-mini - EntraID Authentication\n");
+    console.log("Azure OpenAI GPT-6.1 Sol - EntraID Authentication\n");
     
     checkEnvironment();
     
     const endpoint = process.env.AZURE_OPENAI_ENDPOINT!;
+    const options = loadOptions();
+    console.log(`Deployment: ${options.model}; reasoning effort: ${options.reasoning.effort}\n`);
     
     // Use DefaultAzureCredential for EntraID authentication
     // This automatically uses your Azure CLI login, Managed Identity, or other credential sources
@@ -39,29 +42,21 @@ async function main(): Promise<void> {
     // Example 1: Simple text input with Responses API
     console.log("Example 1: Simple text input\n");
     const response1 = await client.responses.create({
-        model: "gpt-5-mini",
-        input: "Explain quantum computing in simple terms",
-        max_output_tokens: 1000
+        ...options,
+        input: "Explain quantum computing in simple terms in at most 150 words."
     });
-    console.log(`Response: ${response1.output_text}`);
-    console.log(`Status: ${response1.status}`);
-    console.log(`Reasoning tokens: ${response1.usage?.output_tokens_details?.reasoning_tokens}`);
-    console.log(`Output tokens: ${response1.usage?.output_tokens}\n`);
+    printResponse(response1);
     
     // Example 2: Conversation format with Responses API
     console.log("Example 2: Conversation format\n");
     const response2 = await client.responses.create({
-        model: "gpt-5-mini",
+        ...options,
         input: [
             { role: "system", content: "You are an Azure cloud architect." },
-            { role: "user", content: "Design a scalable web application architecture." }
-        ],
-        max_output_tokens: 1000
+            { role: "user", content: "Design a scalable web application architecture in at most 150 words." }
+        ]
     });
-    console.log(`Response: ${response2.output_text}`);
-    console.log(`Status: ${response2.status}`);
-    console.log(`Reasoning tokens: ${response2.usage?.output_tokens_details?.reasoning_tokens}`);
-    console.log(`Output tokens: ${response2.usage?.output_tokens}`);
+    printResponse(response2);
 }
 
 main().catch((error) => {

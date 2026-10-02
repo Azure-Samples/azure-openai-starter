@@ -1,89 +1,67 @@
-# Azure OpenAI GPT-5-mini Template - azd Template
+# Azure OpenAI GPT-6.1 Sol Starter
 
-This workspace contains a minimal Azure Developer CLI (azd) template for deploying GPT-5-mini on Azure OpenAI.
+This is a minimal Azure Developer CLI (azd) template deploying Azure OpenAI with
+`gpt-6.1-sol`, model version `2026-09-29`, and the `GlobalStandard` SKU.
 
-## ✅ Completed Template Features:
-- **One-command deployment**: `azd up` deploys GPT-5-mini in your chosen region
-- **GPT-5-mini (2025-08-07)**: Latest reasoning model, no registration required
-- **New v1 API support**: Future-proof, no version management needed
-- **GlobalStandard SKU**: Optimal performance and availability
-- **Responses API Examples**: Python, TypeScript, Go, .NET and Java using the new Responses API
-- **Complete documentation**: Setup guides and troubleshooting
-- **Validation scripts**: PowerShell and Bash for testing
+## Repository Layout
 
-## Template Structure:
+- `azure.yaml`: azd configuration; `azd up` must propagate provisioning failures.
+- `infra/main.bicep`: resource-group-scoped deployment, allowed regions and capacity.
+- `infra/resources.bicep`: Azure OpenAI account, optional model deployment and RBAC.
+- `infra/main.parameters.json`: azd environment-to-Bicep parameter mapping.
+- `src/python`, `src/typescript`, `src/go`, `src/dotnet`, `src/java`: Responses API
+  examples for API-key and Entra ID authentication.
+- `tests/test_samples.py`: builds and tests all five language clients; live tests
+  require explicit `AZURE_OPENAI_LIVE_TESTS=1` opt-in.
+- `validate.ps1`, `validate.sh`: source-file and Bicep checks, not live inference tests.
+- `README.md`, `CLIENT_README.md`: deployment and client setup.
+- `images/architecture.svg`, `images/aoaistarterimage.png`: editable and rendered hero diagram.
+
+## Model and Client Contract
+
+- Use the `/openai/v1/` base URL and Responses API; no `api-version` is required.
+- Default deployment name: `gpt-6.1-sol`. Honor `AZURE_OPENAI_GPT_DEPLOYMENT_NAME`.
+- Supported reasoning efforts: `low`, `medium` (default), `high`, `xhigh`, `max`.
+  Reject `none`, `minimal`, blank and unknown values before making requests.
+- `AZURE_OPENAI_MAX_OUTPUT_TOKENS` defaults to `16384`; valid range is `16..128000`.
+  The budget includes internal reasoning. Incomplete or empty output is not success.
+- All examples demonstrate simple text and system/user conversation requests.
+- Keep settings and response checks consistent across both auth paths and all languages.
+- The .NET and Go examples remain independently runnable; Python, TypeScript and
+  Java share helpers within their language directories.
+- Entra examples use `DefaultAzureCredential` for development and the
+  `https://cognitiveservices.azure.com/.default` scope. Use a specific credential in production.
+- Never persist API keys or access tokens in source, test output or documentation.
+
+## Infrastructure
+
+- The region is user-selected from the model's verified GlobalStandard region list.
+- `AZURE_OPENAI_CAPACITY` defaults to `10` (10,000 TPM for this model).
+- Resource names are generated from `resourceToken`.
+- Assign the deploying user `Cognitive Services User` for Entra inference access.
+- API-key authentication stays enabled for the key samples.
+- `deployGptModel=false` must omit the model deployment and return an empty deployment-name output.
+- Check the Azure catalog before changing a model ID, version, region or SKU.
+
+## Validation
+
+Run template validation with `.\validate.ps1` or `bash validate.sh`.
+
+Run local client tests with:
+
+```text
+python -m unittest discover -s tests -v
 ```
-├── azure.yaml                 # azd configuration
-├── infra/
-│   ├── main.bicep             # Main deployment (subscription scope)
-│   ├── main.parameters.json   # Deployment parameters
-│   └── resources.bicep        # Azure OpenAI + GPT-5-mini deployment
-├── src/
-│   ├── dotnet/
-│   │   ├── responses_example.cs         # API key authentication
-│   │   ├── responses_example_entra.cs   # EntraID authentication
-│   │   ├── global.json                  # .NET SDK configuration
-│   │   └── README.md                    # .NET prerequisites
-│   ├── go/
-│   │   ├── responses_example/
-│   │   │   ├── main.go                  # API key authentication
-│   │   │   ├── go.mod                   # Go module dependencies
-│   │   │   └── go.sum                   # Go dependency checksums
-│   │   └── responses_example_entra/
-│   │       ├── main.go                  # EntraID authentication
-│   │       ├── go.mod                   # Go module dependencies
-│   │       └── go.sum                   # Go dependency checksums
-│   ├── java/
-│   │   ├── pom.xml                      # Maven dependencies
-│   │   └── src/main/java/com/azure/openai/starter/
-│   │       ├── ResponsesExample.java           # API key authentication
-│   │       └── ResponsesExampleEntra.java      # EntraID authentication
-│   ├── python/
-│   │   ├── responses_example.py         # API key authentication
-│   │   ├── responses_example_entra.py   # EntraID authentication
-│   │   └── requirements.txt             # Python dependencies
-│   └── typescript/
-│       ├── responses_example.ts         # API key authentication
-│       ├── responses_example_entra.ts   # EntraID authentication
-│       ├── package.json                 # Node.js dependencies
-│       └── tsconfig.json                # TypeScript configuration
-├── CLIENT_README.md           # Detailed setup guide for all languages
-├── README.md                  # Main documentation
-├── validate.ps1/.sh          # Validation scripts
-└── .github/copilot-instructions.md # This file
+
+With an explicitly authorized test deployment and both credentials configured:
+
+```text
+AZURE_OPENAI_LIVE_TESTS=1 python -m unittest discover -s tests -k live_matrix -v
 ```
 
-## Key Configuration:
-- **Region**: User-selected during deployment - choose your optimal region
-- **Model**: GPT-5-mini (2025-08-07) with GlobalStandard SKU
-- **API**: New v1 endpoint format for future compatibility
-- **Deployment name**: `gpt-5-mini` (descriptive naming)
-- **Resource naming**: Auto-generated unique names with resourceToken
-- **RBAC**: Cognitive Services User role auto-assigned to deploying user via Bicep
+The live matrix is billable: 5 languages x 2 auth paths x 5 reasoning efforts x
+2 request formats = 100 responses. It uses Azure CLI for Entra authentication.
+Do not claim coverage of streaming, tools, Batch, Chat Completions or hosted
+managed identities based on these tests. Report skipped or blocked checks honestly.
 
-## Usage Instructions:
-1. **Deploy**: `azd auth login && azd up`
-2. **Get details**: `azd env get-values`
-3. **Get API key**: `az cognitiveservices account keys list --name RESOURCE_NAME --resource-group rg-ENV_NAME`
-4. **Test Python**: `cd src/python && python responses_example.py`
-5. **Test TypeScript**: `cd src/typescript && npm start`
-6. **Test Go**: `cd src/go/responses_example && go run .`
-7. **Test .NET**: `cd src/dotnet && dotnet run responses_example.cs`
-8. **Test Java**: `cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExample"`
-
-## Template Benefits:
-- ✅ **Minimal setup** - No complex configuration or containers
-- ✅ **Latest AI model** - GPT-5-mini with reasoning capabilities  
-- ✅ **Production-ready** - Proper resource naming and configuration
-- ✅ **Future-proof** - v1 API eliminates version management
-- ✅ **Responses API** - Cleaner interface optimized for reasoning models
-- ✅ **Complete examples** - Working Python, TypeScript, Go, .NET and Java clients included
-- ✅ **Easy cleanup** - `azd down` removes everything
-
-## API Notes:
-- **Responses API**: Cleaner interface optimized for reasoning models like GPT-5-mini
-- Uses `max_output_tokens=1000` to account for GPT-5-mini's internal reasoning
-- Reasoning tokens are visible in usage statistics via `response.usage.output_tokens_details.reasoning_tokens`
-- Supports both simple text input and conversation format
-
-The template is production-ready and validated for external customer use!
+Keep model/version references, SDK examples, documentation and the diagram aligned.

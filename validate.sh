@@ -1,80 +1,49 @@
 #!/bin/bash
-# Validation script for Azure OpenAI azd template
+set -euo pipefail
 
-echo "🔍 Validating Azure OpenAI azd template..."
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
+echo "Validating Azure OpenAI GPT-6.1 Sol template..."
+for tool in azd az; do
+    if ! command -v "$tool" > /dev/null; then
+        echo "Required command not found: $tool" >&2
+        exit 1
+    fi
+done
+azd version > /dev/null
 
-# Check if azd is installed
-if ! command -v azd &> /dev/null; then
-    echo "❌ Azure Developer CLI (azd) is not installed"
-    echo "💡 Install it from: https://learn.microsoft.com/en-us/azure/developer/azure-developer-cli/install-azd"
-    exit 1
-fi
-
-# Check if azure.yaml exists
-if [ ! -f "azure.yaml" ]; then
-    echo "❌ azure.yaml not found"
-    exit 1
-fi
-
-# Check if infra directory exists
-if [ ! -d "infra" ]; then
-    echo "❌ infra directory not found"
-    exit 1
-fi
-
-# Check if main.bicep exists
-if [ ! -f "infra/main.bicep" ]; then
-    echo "❌ infra/main.bicep not found"
-    exit 1
-fi
-
-# Check if main.parameters.json exists
-if [ ! -f "infra/main.parameters.json" ]; then
-    echo "❌ infra/main.parameters.json not found"
-    exit 1
-fi
-
-echo "✅ All required infra files found"
-
-# Check source examples
-source_files=(
+required_files=(
+    "azure.yaml"
+    "infra/main.bicep"
+    "infra/resources.bicep"
+    "infra/main.parameters.json"
     "src/python/responses_example.py"
     "src/python/responses_example_entra.py"
+    "src/python/sample_options.py"
     "src/typescript/responses_example.ts"
     "src/typescript/responses_example_entra.ts"
+    "src/typescript/sample_options.ts"
     "src/go/responses_example/main.go"
     "src/go/responses_example_entra/main.go"
     "src/dotnet/responses_example.cs"
     "src/dotnet/responses_example_entra.cs"
     "src/java/pom.xml"
+    "src/java/src/main/java/com/azure/openai/starter/ResponsesExample.java"
+    "src/java/src/main/java/com/azure/openai/starter/ResponsesExampleEntra.java"
+    "src/java/src/main/java/com/azure/openai/starter/SampleOptions.java"
 )
 
-all_sources_found=true
-for file in "${source_files[@]}"; do
+for file in "${required_files[@]}"; do
     if [ ! -f "$file" ]; then
-        echo "❌ $file not found"
-        all_sources_found=false
-    fi
-done
-
-if [ "$all_sources_found" = true ]; then
-    echo "✅ All source examples found"
-else
-    echo "⚠️  Some source examples are missing"
-fi
-
-# Validate Bicep template if Azure CLI is available
-if command -v az &> /dev/null; then
-    echo "🔧 Validating Bicep template..."
-    if az bicep build --file infra/main.bicep &> /dev/null; then
-        echo "✅ Bicep template is valid"
-    else
-        echo "❌ Bicep template validation failed"
+        echo "Required file not found: $file" >&2
         exit 1
     fi
-else
-    echo "⚠️  Azure CLI not found - skipping Bicep validation"
+done
+echo "All required infrastructure and source files found"
+
+if ! az bicep build --file infra/main.bicep --stdout > /dev/null; then
+    echo "Bicep template validation failed" >&2
+    exit 1
 fi
 
-echo "🎉 Template validation successful!"
-echo "🚀 You can now run: azd up"
+echo "Template validation successful (no resources deployed)."
+echo "For client contract tests: python -m unittest discover -s tests -v"
