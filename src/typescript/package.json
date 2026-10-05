@@ -1,14 +1,14 @@
 {
-  "name": "azure-openai-gpt5-mini-client",
+  "name": "azure-openai-gpt61-sol-client",
   "version": "1.0.0",
-  "description": "TypeScript client for Azure OpenAI GPT-5-mini using azd template",
+  "description": "TypeScript client for Azure OpenAI GPT-6.1 Sol using azd template",
   "main": "responses_example.js",
   "scripts": {
     "start": "tsx responses_example.ts",
     "build": "tsc",
     "dev": "tsx watch responses_example.ts"
   },
-  "keywords": ["azure", "openai", "gpt-5-mini", "typescript", "azd"],
+  "keywords": ["azure", "openai", "gpt-6.1-sol", "typescript", "azd"],
   "author": "Azure Developer CLI Template",
   "license": "MIT",
   "dependencies": {

@@ -15,6 +15,7 @@ src/typescript/*.js.map
 src/python/__pycache__/
 src/python/*.pyc
 src/python/*.pyo
+tests/__pycache__/
 .venv/
 
 # Java

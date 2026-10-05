@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
@@ -13,7 +14,48 @@ import (
 	"github.com/openai/openai-go/v3"
 	"github.com/openai/openai-go/v3/option"
 	"github.com/openai/openai-go/v3/responses"
+	"github.com/openai/openai-go/v3/shared"
 )
+
+func envOrDefault(name, fallback string) string {
+	if value, exists := os.LookupEnv(name); exists {
+		return value
+	}
+	return fallback
+}
+
+func loadOptions() (string, shared.ReasoningEffort, int64) {
+	model := envOrDefault("AZURE_OPENAI_GPT_DEPLOYMENT_NAME", "gpt-6.1-sol")
+	effort := shared.ReasoningEffort(envOrDefault("AZURE_OPENAI_REASONING_EFFORT", "medium"))
+	switch effort {
+	case shared.ReasoningEffortLow, shared.ReasoningEffortMedium, shared.ReasoningEffortHigh, shared.ReasoningEffortXhigh, shared.ReasoningEffortMax:
+	default:
+		log.Fatal("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max")
+	}
+	tokens := envOrDefault("AZURE_OPENAI_MAX_OUTPUT_TOKENS", "16384")
+	maxOutputTokens, err := strconv.ParseInt(tokens, 10, 64)
+	if err != nil || maxOutputTokens < 16 || maxOutputTokens > 128000 {
+		log.Fatal("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000")
+	}
+	return model, effort, maxOutputTokens
+}
+
+func printResponse(response *responses.Response) {
+	if response.Status != responses.ResponseStatusCompleted {
+		log.Fatalf("Response did not complete: %s; details=%+v; error=%+v", response.Status, response.IncompleteDetails, response.Error)
+	}
+	if strings.TrimSpace(response.OutputText()) == "" {
+		log.Fatal("Response completed without output text")
+	}
+	if !response.JSON.Usage.Valid() {
+		log.Fatal("Response completed without token usage")
+	}
+	log.Printf("Response: %s", response.OutputText())
+	log.Printf("Status: %s", response.Status)
+	log.Printf("Reasoning tokens: %d", response.Usage.OutputTokensDetails.ReasoningTokens)
+	log.Printf("Output tokens: %d", response.Usage.OutputTokens)
+	log.Println()
+}
 
 type policyAdapter option.MiddlewareNext
 
@@ -62,15 +104,16 @@ func newClientUsingEntraAuthentication(endpoint string) openai.Client {
 	return client
 }
 
-
 func main() {
-	log.Printf("Azure OpenAI GPT-5-mini - EntraID Authentication\n")
+	log.Printf("Azure OpenAI GPT-6.1 Sol - EntraID Authentication\n")
 
 	endpoint := os.Getenv("AZURE_OPENAI_ENDPOINT")
 
 	if endpoint == "" {
 		log.Fatalf("Missing AZURE_OPENAI_ENDPOINT environment variable")
 	}
+	model, effort, maxOutputTokens := loadOptions()
+	log.Printf("Deployment: %s; reasoning effort: %s", model, effort)
 
 	client := newClientUsingEntraAuthentication(endpoint)
 
@@ -78,27 +121,24 @@ func main() {
 	log.Printf("Example 1: Simple text input")
 
 	resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
-		Model: "gpt-5-mini",
+		Model: model,
 		Input: responses.ResponseNewParamsInputUnion{
 			OfString: openai.String("Explain quantum computing in simple terms"),
 		},
-		MaxOutputTokens: openai.Int(1000),
+		Reasoning:       shared.ReasoningParam{Effort: effort},
+		MaxOutputTokens: openai.Int(maxOutputTokens),
 	})
 
 	if err != nil {
 		log.Fatalf("Failed to create responses: %s", err)
 	}
 
-	log.Printf("Response: %s", resp.OutputText())
-	log.Printf("Status: %s", resp.Status)
-	log.Printf("Reasoning tokens: %d", resp.Usage.OutputTokensDetails.ReasoningTokens)
-	log.Printf("Output tokens: %d", resp.Usage.OutputTokens)
-	log.Println()
+	printResponse(resp)
 
 	// Example 2: Conversation format with Responses API
 	log.Printf("Example 2: Conversation format")
 	resp2, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
-		Model: "gpt-5-mini",
+		Model: model,
 		Input: responses.ResponseNewParamsInputUnion{
 			OfInputItemList: responses.ResponseInputParam{
 				{
@@ -119,18 +159,13 @@ func main() {
 				},
 			},
 		},
-		MaxOutputTokens: openai.Int(1000),
+		Reasoning:       shared.ReasoningParam{Effort: effort},
+		MaxOutputTokens: openai.Int(maxOutputTokens),
 	})
 
 	if err != nil {
 		log.Fatalf("Failed to create responses: %s", err)
 	}
 
-	log.Printf("Response: %s", resp2.OutputText())
-	log.Printf("Status: %s", resp2.Status)
-	log.Printf("Reasoning tokens: %d", resp2.Usage.OutputTokensDetails.ReasoningTokens)
-	log.Printf("Output tokens: %d", resp2.Usage.OutputTokens)
-	log.Println()
+	printResponse(resp2)
 }
-
-

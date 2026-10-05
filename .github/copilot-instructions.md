@@ -1,10 +1,10 @@
-# Azure OpenAI GPT-5-mini Template - azd Template
+# Azure OpenAI GPT-6.1 Sol Template - azd Template
 
-This workspace contains a minimal Azure Developer CLI (azd) template for deploying GPT-5-mini on Azure OpenAI.
+This workspace contains a minimal Azure Developer CLI (azd) template for deploying GPT-6.1 Sol on Azure OpenAI.
 
 ## ✅ Completed Template Features:
-- **One-command deployment**: `azd up` deploys GPT-5-mini in your chosen region
-- **GPT-5-mini (2025-08-07)**: Latest reasoning model, no registration required
+- **One-command deployment**: `azd up` deploys GPT-6.1 Sol in your chosen region
+- **GPT-6.1 Sol (2026-09-29)**: Latest reasoning model
 - **New v1 API support**: Future-proof, no version management needed
 - **GlobalStandard SKU**: Optimal performance and availability
 - **Responses API Examples**: Python, TypeScript, Go, .NET and Java using the new Responses API
@@ -17,7 +17,7 @@ This workspace contains a minimal Azure Developer CLI (azd) template for deployi
 ├── infra/
 │   ├── main.bicep             # Main deployment (subscription scope)
 │   ├── main.parameters.json   # Deployment parameters
-│   └── resources.bicep        # Azure OpenAI + GPT-5-mini deployment
+│   └── resources.bicep        # Azure OpenAI + GPT-6.1 Sol deployment
 ├── src/
 │   ├── dotnet/
 │   │   ├── responses_example.cs         # API key authentication
@@ -47,6 +47,7 @@ This workspace contains a minimal Azure Developer CLI (azd) template for deployi
 │       ├── responses_example_entra.ts   # EntraID authentication
 │       ├── package.json                 # Node.js dependencies
 │       └── tsconfig.json                # TypeScript configuration
+├── tests/                     # Client and validation tests
 ├── CLIENT_README.md           # Detailed setup guide for all languages
 ├── README.md                  # Main documentation
 ├── validate.ps1/.sh          # Validation scripts
@@ -55,9 +56,9 @@ This workspace contains a minimal Azure Developer CLI (azd) template for deployi
 
 ## Key Configuration:
 - **Region**: User-selected during deployment - choose your optimal region
-- **Model**: GPT-5-mini (2025-08-07) with GlobalStandard SKU
+- **Model**: GPT-6.1 Sol (2026-09-29) with GlobalStandard SKU
 - **API**: New v1 endpoint format for future compatibility
-- **Deployment name**: `gpt-5-mini` (descriptive naming)
+- **Deployment name**: `gpt-6.1-sol` (descriptive naming)
 - **Resource naming**: Auto-generated unique names with resourceToken
 - **RBAC**: Cognitive Services User role auto-assigned to deploying user via Bicep
 
@@ -70,10 +71,11 @@ This workspace contains a minimal Azure Developer CLI (azd) template for deployi
 6. **Test Go**: `cd src/go/responses_example && go run .`
 7. **Test .NET**: `cd src/dotnet && dotnet run responses_example.cs`
 8. **Test Java**: `cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExample"`
+9. **Run tests**: `python -m unittest discover -s tests -v`
 
 ## Template Benefits:
 - ✅ **Minimal setup** - No complex configuration or containers
-- ✅ **Latest AI model** - GPT-5-mini with reasoning capabilities  
+- ✅ **Latest AI model** - GPT-6.1 Sol with reasoning capabilities  
 - ✅ **Production-ready** - Proper resource naming and configuration
 - ✅ **Future-proof** - v1 API eliminates version management
 - ✅ **Responses API** - Cleaner interface optimized for reasoning models
@@ -81,8 +83,9 @@ This workspace contains a minimal Azure Developer CLI (azd) template for deployi
 - ✅ **Easy cleanup** - `azd down` removes everything
 
 ## API Notes:
-- **Responses API**: Cleaner interface optimized for reasoning models like GPT-5-mini
-- Uses `max_output_tokens=1000` to account for GPT-5-mini's internal reasoning
+- **Responses API**: Cleaner interface optimized for reasoning models like GPT-6.1 Sol
+- Uses `max_output_tokens=16384` by default (`AZURE_OPENAI_MAX_OUTPUT_TOKENS`) to account for GPT-6.1 Sol's internal reasoning
+- Reasoning effort is set with `AZURE_OPENAI_REASONING_EFFORT` (`low`, `medium`, `high`, `xhigh` or `max`). `none` and `minimal` are not supported
 - Reasoning tokens are visible in usage statistics via `response.usage.output_tokens_details.reasoning_tokens`
 - Supports both simple text input and conversation format
 

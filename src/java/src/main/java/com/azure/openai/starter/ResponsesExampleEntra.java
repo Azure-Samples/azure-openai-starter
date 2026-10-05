@@ -5,22 +5,26 @@ import com.azure.identity.DefaultAzureCredentialBuilder;
 import com.openai.client.OpenAIClient;
 import com.openai.client.okhttp.OpenAIOkHttpClient;
 import com.openai.credential.BearerTokenCredential;
-import com.openai.models.ChatModel;
-import com.openai.models.ResponsesModel;
+import com.openai.models.Reasoning;
+import com.openai.models.ReasoningEffort;
 import com.openai.models.responses.Response;
 import com.openai.models.responses.ResponseInputItem;
+import com.openai.models.responses.ResponseOutputText;
+import com.openai.models.responses.ResponseStatus;
 
 import java.util.List;
+import java.util.Set;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 /**
- * Azure OpenAI GPT-5-mini - Responses API with EntraID Authentication
+ * Azure OpenAI GPT-6.1 Sol - Responses API with EntraID Authentication
  * This demonstrates using Azure Identity (EntraID) instead of API keys.
  */
 public class ResponsesExampleEntra {
 
     public static void main(String[] args) {
-        System.out.println("Azure OpenAI - Responses API");
+        System.out.println("Azure OpenAI GPT-6.1 Sol - EntraID Authentication");
 
         // Get required environment variables - throws if missing
         String endpoint = System.getenv("AZURE_OPENAI_ENDPOINT");
@@ -29,6 +33,25 @@ public class ResponsesExampleEntra {
             System.err.println("Error: AZURE_OPENAI_ENDPOINT must be set");
             System.exit(1);
         }
+
+        // Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
+        String model = System.getenv().getOrDefault("AZURE_OPENAI_GPT_DEPLOYMENT_NAME", "gpt-6.1-sol");
+        String effort = System.getenv().getOrDefault("AZURE_OPENAI_REASONING_EFFORT", "medium");
+        if (!Set.of("low", "medium", "high", "xhigh", "max").contains(effort)) {
+            throw new IllegalArgumentException("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max");
+        }
+        String tokens = System.getenv().getOrDefault("AZURE_OPENAI_MAX_OUTPUT_TOKENS", "16384");
+        long maxOutputTokens;
+        try {
+            maxOutputTokens = Long.parseLong(tokens);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000", e);
+        }
+        if (maxOutputTokens < 16 || maxOutputTokens > 128000) {
+            throw new IllegalArgumentException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000");
+        }
+        Reasoning reasoning = Reasoning.builder().effort(ReasoningEffort.of(effort)).build();
+        System.out.println("Deployment: " + model + "; reasoning effort: " + effort);
 
         // Use DefaultAzureCredential for EntraID authentication
         // For production, use a specific credential (e.g. ManagedIdentityCredential) or set
@@ -49,16 +72,14 @@ public class ResponsesExampleEntra {
         System.out.println("Example 1: Simple text input");
         Response response1 = client.responses().create(
                 com.openai.models.responses.ResponseCreateParams.builder()
-                        .model(ResponsesModel.ofChat(ChatModel.GPT_5_MINI))
+                        .model(model)
                         .input(com.openai.models.responses.ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms"))
-                        .maxOutputTokens(1000)
+                        .reasoning(reasoning)
+                        .maxOutputTokens(maxOutputTokens)
                         .build()
         );
 
-        System.out.println("Response: " + response1.output());
-        System.out.println("Status: " + response1.status());
-        response1.usage().ifPresent(usage -> System.out.println("Reasoning tokens: " + usage.outputTokensDetails().reasoningTokens()));
-        response1.usage().ifPresent(usage -> System.out.println("Output tokens: " + usage.outputTokens()));
+        printResponse(response1);
 
         // Example 2: Conversation format with Responses API
         System.out.println("Example 2: Conversation format");
@@ -75,15 +96,37 @@ public class ResponsesExampleEntra {
 
         Response response2 = client.responses().create(
                 com.openai.models.responses.ResponseCreateParams.builder()
-                        .model("gpt-5-mini")
+                        .model(model)
                         .input(com.openai.models.responses.ResponseCreateParams.Input.ofResponse(responseInputItems))
-                        .maxOutputTokens(1000)
+                        .reasoning(reasoning)
+                        .maxOutputTokens(maxOutputTokens)
                         .build()
         );
 
-        System.out.println("Response: " + response2.output());
-        System.out.println("Status: " + response2.status());
-        response2.usage().ifPresent(usage -> System.out.println("Reasoning tokens: " + usage.outputTokensDetails().reasoningTokens()));
-        response2.usage().ifPresent(usage -> System.out.println("Output tokens: " + usage.outputTokens()));
+        printResponse(response2);
+    }
+
+    private static void printResponse(Response response) {
+        if (!ResponseStatus.COMPLETED.equals(response.status().orElse(null))) {
+            throw new IllegalStateException("Response did not complete: " + response.status()
+                    + "; details=" + response.incompleteDetails() + "; error=" + response.error());
+        }
+        String text = response.output().stream()
+                .flatMap(item -> item.message().stream())
+                .flatMap(message -> message.content().stream())
+                .flatMap(content -> content.outputText().stream())
+                .map(ResponseOutputText::text)
+                .collect(Collectors.joining());
+        if (text.isBlank()) {
+            throw new IllegalStateException("Response completed without output text");
+        }
+        var usage = response.usage().orElseThrow(
+                () -> new IllegalStateException("Response completed without token usage"));
+
+        System.out.println("Response: " + text);
+        System.out.println("Status: " + response.status().orElseThrow());
+        System.out.println("Reasoning tokens: " + usage.outputTokensDetails().reasoningTokens());
+        System.out.println("Output tokens: " + usage.outputTokens());
+        System.out.println();
     }
 }

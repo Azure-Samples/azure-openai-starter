@@ -12,20 +12,20 @@ products:
 - azure
 urlFragment: azure-openai-starter
 name: The Azure OpenAI Starter Kit
-description: Deploy Azure OpenAI with GPT-5-mini using one CLI command. Includes OpenAI SDK for Python, TypeScript, Go, .NET and Java examples using the Responses API.
+description: Deploy Azure OpenAI with GPT-6.1 Sol using one CLI command. Includes OpenAI SDK for Python, TypeScript, Go, .NET and Java examples using the Responses API.
 ---
 -->
 # The Azure OpenAI Starter Kit
 
 **The fastest way to get started with Azure OpenAI.**
 
-Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single CLI command. Includes OpenAI SDK for Python, TypeScript, Go, .NET and Java examples using the Responses API. 
+Rapidly deploy an Azure OpenAI instance with a GPT-6.1 Sol model using a single CLI command. Includes OpenAI SDK for Python, TypeScript, Go, .NET and Java examples using the Responses API. 
 
 ## Architecture Overview
 
 ![Azure OpenAI Starter Kit Architecture](./images/aoaistarterimage.png)
 
-*The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for Python, TypeScript, Go, .NET and Java, featuring secure EntraID authentication and the new Responses API optimized for GPT-5-mini.*
+*The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for Python, TypeScript, Go, .NET and Java, featuring secure EntraID authentication and the new Responses API optimized for GPT-6.1 Sol.*
 
 ## Prerequisites
 
@@ -40,11 +40,11 @@ Rapidly deploy an Azure OpenAI instance with a GPT-5-mini model using a single C
 az login
 azd auth login
 
-# 2. Deploy GPT-5-mini to Azure OpenAI 
+# 2. Deploy GPT-6.1 Sol to Azure OpenAI 
 azd up
 ```
 
-That's it! 🚀 You now have **Azure OpenAI** with **GPT-5-mini** model deployed and ready to use!
+That's it! 🚀 You now have **Azure OpenAI** with **GPT-6.1 Sol** model deployed and ready to use!
 
 ## Next Steps
 
@@ -141,9 +141,9 @@ client = OpenAI(
 )
 
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
+    max_output_tokens=16384
 )
 print(response.output_text)
 ```
@@ -168,9 +168,9 @@ const client = new OpenAI({
 });
 
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: "Explain quantum computing in simple terms",
-    max_output_tokens: 1000
+    max_output_tokens: 16384
 });
 console.log(response.output_text);
 ```
@@ -204,11 +204,11 @@ client := openai.NewClient(
 )
 
 resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
-    Model: "gpt-5-mini",
+    Model: "gpt-6.1-sol",
     Input: responses.ResponseNewParamsInputUnion{
         OfString: openai.String("Explain quantum computing in simple terms"),
     },
-    MaxOutputTokens: openai.Int(1000),
+    MaxOutputTokens: openai.Int(16384),
 })
 ```
 
@@ -242,7 +242,7 @@ var clientOptions = new ResponsesClientOptions
 var responsesClient = new ResponsesClient(policy, clientOptions);
 
 ResponseResult response1 = await responsesClient.CreateResponseAsync(
-    "gpt-5-mini", "Explain quantum computing in simple terms", null);
+    "gpt-6.1-sol", "Explain quantum computing in simple terms", null);
 
 Console.WriteLine(response1.GetOutputText());
 ```
@@ -278,9 +278,9 @@ OpenAIClient client = OpenAIOkHttpClient.builder()
 
 Response response = client.responses().create(
     ResponseCreateParams.builder()
-        .model("gpt-5-mini")
+        .model("gpt-6.1-sol")
         .input(ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms"))
-        .maxOutputTokens(1000)
+        .maxOutputTokens(16384)
         .build()
 );
 System.out.println(response.output());
@@ -378,9 +378,9 @@ client = OpenAI(
 )
 
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
+    max_output_tokens=16384
 )
 print(response.output_text)
 ```
@@ -399,9 +399,9 @@ const client = new OpenAI({
 });
 
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: "Explain quantum computing in simple terms",
-    max_output_tokens: 1000
+    max_output_tokens: 16384
 });
 console.log(response.output_text);
 ```
@@ -426,11 +426,11 @@ client := openai.NewClient(
 )
 
 resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
-    Model: "gpt-5-mini",
+    Model: "gpt-6.1-sol",
     Input: responses.ResponseNewParamsInputUnion{
         OfString: openai.String("Explain quantum computing in simple terms"),
     },
-    MaxOutputTokens: openai.Int(1000),
+    MaxOutputTokens: openai.Int(16384),
 })
 ```
 
@@ -463,7 +463,7 @@ var clientOptions = new ResponsesClientOptions
 var responsesClient = new ResponsesClient(credential, clientOptions);
 
 ResponseResult response1 = await responsesClient.CreateResponseAsync(
-    "gpt-5-mini", "Explain quantum computing in simple terms", null);
+    "gpt-6.1-sol", "Explain quantum computing in simple terms", null);
 
 Console.WriteLine($"Response: {response1.GetOutputText()}");
 ```
@@ -492,9 +492,9 @@ OpenAIClient client = OpenAIOkHttpClient.builder()
 
 Response response = client.responses().create(
     ResponseCreateParams.builder()
-        .model("gpt-5-mini")
+        .model("gpt-6.1-sol")
         .input(ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms"))
-        .maxOutputTokens(1000)
+        .maxOutputTokens(16384)
         .build()
 );
 System.out.println(response.output());
@@ -510,7 +510,7 @@ System.out.println(response.output());
 
 ## What This Template Includes
 
-- **Core Infrastructure**: Azure OpenAI resource with GPT-5-mini deployment
+- **Core Infrastructure**: Azure OpenAI resource with GPT-6.1 Sol deployment
 - **Optimal Configuration**: Flexible region selection, GlobalStandard SKU, v1 API
 - **Secure Authentication**: EntraID (Azure Identity) recommended + API key option
 - **Client Examples**: Python, TypeScript, Go, .NET and Java using the new Responses API
@@ -519,7 +519,7 @@ System.out.println(response.output());
 
 ## What You Get
 
-✅ **GPT-5-mini (2025-08-07)** - Latest reasoning model, no registration required  
+✅ **GPT-6.1 Sol (2026-09-29)** - Latest reasoning model  
 ✅ **Flexible region** deployment - Choose your optimal region   
 ✅ **New v1 API** support - Future-proof, no version management needed  
 ✅ **Automatic deployment** - Model ready to use immediately  
@@ -564,6 +564,7 @@ System.out.println(response.output());
 │       ├── responses_example_entra.ts   # EntraID authentication
 │       ├── package.json                 # Node.js dependencies
 │       └── tsconfig.json                # TypeScript configuration
+├── tests/                     # Client and validation tests
 ├── CLIENT_README.md           # Detailed setup guide for all languages
 ├── validate.ps1              # PowerShell validation script
 └── validate.sh               # Bash validation script
@@ -599,21 +600,36 @@ azd up
 Want a different model? Edit `infra/resources.bicep`:
 
 ```bicep
-// Current: GPT-5-mini (no registration required)
-gptModelName: 'gpt-5-mini'
-gptModelVersion: '2025-08-07'
-
-// Alternatives (no registration required):
-gptModelName: 'gpt-5-nano'      // Fastest
-gptModelName: 'gpt-5-chat'      // Chat-optimized
-
-// Full GPT-5 (requires registration):
-gptModelName: 'gpt-5'           // Needs approval
+// Current: GPT-6.1 Sol
+gptModelName: 'gpt-6.1-sol'
+gptModelVersion: '2026-09-29'
 ```
+
+Check the [model catalog](https://ai.azure.com/catalog/models/gpt-6.1-sol) for model names, versions and regions before changing these. Set `azd env set AZURE_OPENAI_CAPACITY <value>` before `azd up` to change the deployment capacity (default 10, which is 10,000 tokens per minute).
+
+## Reasoning Settings
+
+All examples read these optional environment variables:
+
+| Variable | Default | Values |
+|---|---|---|
+| `AZURE_OPENAI_GPT_DEPLOYMENT_NAME` | `gpt-6.1-sol` | Your deployment name |
+| `AZURE_OPENAI_REASONING_EFFORT` | `medium` | `low`, `medium`, `high`, `xhigh`, `max` |
+| `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | `16384` | 16 to 128000, includes reasoning tokens |
+
+GPT-6.1 Sol does not support the `none` and `minimal` reasoning efforts.
+
+## Tests
+
+```bash
+python -m unittest discover -s tests -v
+```
+
+This builds the Python, TypeScript, Go, .NET and Java examples and runs them against a local mock endpoint. To also run them against your own deployment, set `AZURE_OPENAI_LIVE_TESTS=1` along with `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY`, and sign in with `az login`. The live tests send about 120 requests, so they use quota and cost money.
 
 ## Troubleshooting
 
-**"GPT-5-mini not available"** → Try `azd env set AZURE_LOCATION eastus2`
+**"GPT-6.1 Sol not available"** → Try `azd env set AZURE_LOCATION eastus2`
 
 **"Quota exceeded"** → Check your subscription quota for Azure OpenAI
 
@@ -626,7 +642,7 @@ gptModelName: 'gpt-5'           // Needs approval
 ## Why This Template?
 
 ✅ **Minimal setup** - 2 commands instead of 20+  
-✅ **Latest model** - GPT-5-mini with reasoning capabilities  
+✅ **Latest model** - GPT-6.1 Sol with reasoning capabilities  
 ✅ **Future-proof** - Uses new v1 API, no version management  
 ✅ **Production-ready** - GlobalStandard SKU, EntraID auth, proper naming  
 ✅ **Complete examples** - Python, TypeScript, Go, .NET and Java with error handling  
@@ -635,6 +651,6 @@ gptModelName: 'gpt-5'           // Needs approval
 
 ---
 
-**Happy AI building with GPT-5-mini!** 🤖✨
+**Happy AI building with GPT-6.1 Sol!** 🤖✨
 
-*Powered by [Azure Developer CLI](https://aka.ms/azd) | Deploys GPT-5-mini (2025-08-07)*
+*Powered by [Azure Developer CLI](https://aka.ms/azd) | Deploys GPT-6.1 Sol (2026-09-29)*

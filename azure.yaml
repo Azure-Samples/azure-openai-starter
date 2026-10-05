@@ -2,9 +2,8 @@ name: azure-openai-minimal
 metadata:
   template: azure-openai-minimal@0.0.1-beta
   author: Arun Sekhar
-  description: Minimal Azure OpenAI GPT-5-mini deployment using Azure Developer CLI
+  description: Minimal Azure OpenAI GPT-6.1 Sol deployment using Azure Developer CLI
 
 workflows:
   up:
     - azd: provision
-      continueOnError: true

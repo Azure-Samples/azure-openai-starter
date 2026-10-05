@@ -1,19 +1,19 @@
 # Azure OpenAI Starter - Client Examples
 
-Complete guide to using your deployed Azure OpenAI **GPT-5-mini** model with the **Responses API** in **Python**, **TypeScript/Node.js**, **Go**, **.NET** and **Java**.
+Complete guide to using your deployed Azure OpenAI **GPT-6.1 Sol** model with the **Responses API** in **Python**, **TypeScript/Node.js**, **Go**, **.NET** and **Java**.
 
 ## About the Responses API
 
-The Responses API is the newer, cleaner interface designed specifically for GPT-5-mini and other reasoning models. It provides:
+The Responses API is the newer, cleaner interface designed specifically for GPT-6.1 Sol and other reasoning models. It provides:
 
 - **Simpler syntax**: Uses `input` parameter instead of `messages`
-- **Better for reasoning**: Optimized for GPT-5-mini's internal reasoning capabilities
+- **Better for reasoning**: Optimized for GPT-6.1 Sol's internal reasoning capabilities
 - **Cleaner output**: Direct access to response text via `output_text`
 - **Token visibility**: Clear visibility into reasoning tokens vs output tokens
 
 ## Prerequisites
 
-✅ Azure OpenAI GPT-5-mini deployed (run `azd up` first)  
+✅ Azure OpenAI GPT-6.1 Sol deployed (run `azd up` first)  
 ✅ Python 3.8+ or Node.js 18+ or Go 1.21+ or .NET 10+ or Java 21+ installed  
 ✅ Azure CLI installed and logged in (`az login`)
 
@@ -68,9 +68,9 @@ client = OpenAI(
 
 # Use the Responses API
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
+    max_output_tokens=16384
 )
 print(response.output_text)
 ```
@@ -104,9 +104,9 @@ const client = new OpenAI({
 
 // Use the Responses API
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: "Explain quantum computing in simple terms",
-    max_output_tokens: 1000
+    max_output_tokens: 16384
 });
 console.log(response.output_text);
 ```
@@ -192,9 +192,9 @@ client = OpenAI(
 )
 
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
+    max_output_tokens=16384
 )
 print(response.output_text)
 ```
@@ -220,9 +220,9 @@ const client = new OpenAI({
 });
 
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: "Explain quantum computing in simple terms",
-    max_output_tokens: 1000
+    max_output_tokens: 16384
 });
 console.log(response.output_text);
 ```
@@ -255,21 +255,33 @@ mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.Responses
 
 ---
 
+## Reasoning Settings
+
+All examples read these optional environment variables:
+
+| Variable | Default | Values |
+|---|---|---|
+| `AZURE_OPENAI_GPT_DEPLOYMENT_NAME` | `gpt-6.1-sol` | Your deployment name |
+| `AZURE_OPENAI_REASONING_EFFORT` | `medium` | `low`, `medium`, `high`, `xhigh`, `max` |
+| `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | `16384` | 16 to 128000, includes reasoning tokens |
+
+GPT-6.1 Sol does not support the `none` and `minimal` reasoning efforts.
+
 ## Example Output
 
 When you run either example, you should see:
 
 ```
 🔗 Connecting to: https://openai-xxx.openai.azure.com/openai/v1/
-🤖 Testing GPT-5-mini model...
+🤖 Testing GPT-6.1 Sol model...
 ------------------------------------------------------------
-✅ Success! GPT-5-mini response:
+✅ Success! GPT-6.1 Sol response:
 --------------------------------------------------
-Hello! I'm GPT-5-mini running on Microsoft Azure. 
+Hello! I'm GPT-6.1 Sol running on Microsoft Azure. 
 
 Something interesting about Sweden: Sweden has a unique concept called "allemansrätten" (the Right to Roam), which gives everyone the legal right to access and enjoy nature freely - you can walk, camp, pick berries, and mushrooms almost anywhere in the country, as long as you don't disturb wildlife or private property. This reflects Sweden's deep cultural connection to nature and trust-based society.
 --------------------------------------------------
-📊 Model: gpt-5-mini-2025-08-07
+📊 Model: gpt-6.1-sol-2026-09-29
 📊 Tokens used: 284
 📊 Input tokens: 45
 📊 Output tokens: 239
@@ -284,12 +296,12 @@ Sweden is distinctive for its blend of social-democratic institutions and strong
 📊 Complex test tokens: 396
 📊 Complex reasoning tokens: 256
 
-🎉 GPT-5-mini is working perfectly!
+🎉 GPT-6.1 Sol is working perfectly!
 ```
 
 ## Key Features
 
-✅ **GPT-5-mini (2025-08-07)** - Latest reasoning model from OpenAI  
+✅ **GPT-6.1 Sol (2026-09-29)** - Latest reasoning model from OpenAI  
 ✅ **New v1 API** - No api-version needed, future-proof  
 ✅ **Flexible region** deployment - Choose your optimal region  
 ✅ **Standard OpenAI client** - Works with Python, TypeScript, Go, .NET and Java  
@@ -323,9 +335,9 @@ client = OpenAI(
 
 # Use the Responses API normally
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
+    max_output_tokens=16384
 )
 print(response.output_text)
 ```
@@ -348,9 +360,9 @@ const client = new OpenAI({
 
 // Use the Responses API normally
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: "Explain quantum computing in simple terms",
-    max_output_tokens: 1000
+    max_output_tokens: 16384
 });
 console.log(response.output_text);
 ```
@@ -373,9 +385,9 @@ client = OpenAI(
 )
 
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
+    max_output_tokens=16384
 )
 print(response.output_text)
 ```
@@ -390,9 +402,9 @@ const client = new OpenAI({
 });
 
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: "Explain quantum computing in simple terms",
-    maxOutputTokens: 1000
+    maxOutputTokens: 16384
 });
 console.log(response.outputText);
 ```
@@ -401,12 +413,12 @@ console.log(response.outputText);
 ```python
 # The Responses API also supports conversation format
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input=[
         {"role": "system", "content": "You are an Azure cloud architect."},
         {"role": "user", "content": "Design a scalable web application architecture."}
     ],
-    max_output_tokens=1000
+    max_output_tokens=16384
 )
 print(response.output_text)
 ```
@@ -414,23 +426,23 @@ print(response.output_text)
 ### TypeScript - Conversation Format
 ```typescript
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: [
         { role: "system", content: "You are an Azure cloud architect." },
         { role: "user", content: "Design a scalable web application architecture." }
     ],
-    maxOutputTokens: 1000
+    maxOutputTokens: 16384
 });
 console.log(response.outputText);
 ```
 
 ### Python - Accessing Reasoning Tokens
 ```python
-# GPT-5-mini uses internal reasoning - you can see how many reasoning tokens were used
+# GPT-6.1 Sol uses internal reasoning - you can see how many reasoning tokens were used
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input="Explain quantum computing in simple terms",
-    max_output_tokens=1000
+    max_output_tokens=16384
 )
 print(response.output_text)
 print(f"Reasoning tokens: {response.usage.output_tokens_details.reasoning_tokens}")
@@ -438,11 +450,11 @@ print(f"Reasoning tokens: {response.usage.output_tokens_details.reasoning_tokens
 
 ### TypeScript - Accessing Reasoning Tokens
 ```typescript
-// GPT-5-mini uses internal reasoning - you can see how many reasoning tokens were used
+// GPT-6.1 Sol uses internal reasoning - you can see how many reasoning tokens were used
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: "Explain quantum computing in simple terms",
-    maxOutputTokens: 1000
+    maxOutputTokens: 16384
 });
 console.log(response.outputText);
 console.log(`Reasoning tokens: ${response.usage?.outputTokensDetails?.reasoningTokens}`);
@@ -450,11 +462,11 @@ console.log(`Reasoning tokens: ${response.usage?.outputTokensDetails?.reasoningT
 
 ### Python - Accessing Reasoning Tokens
 ```python
-# GPT-5-mini uses internal reasoning - you can see the token usage
+# GPT-6.1 Sol uses internal reasoning - you can see the token usage
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input="Solve this step by step: 15 + 27 - 8 = ?",
-    max_output_tokens=500
+    max_output_tokens=16384
 )
 
 # Access reasoning and output tokens
@@ -466,11 +478,11 @@ print(f"Total tokens: {response.usage.total_tokens}")
 
 ### TypeScript - Accessing Reasoning Tokens
 ```typescript
-// GPT-5-mini uses internal reasoning - you can see the token usage
+// GPT-6.1 Sol uses internal reasoning - you can see the token usage
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: "Solve this step by step: 15 + 27 - 8 = ?",
-    max_output_tokens: 500
+    max_output_tokens: 16384
 });
 
 // Access reasoning and output tokens
@@ -489,9 +501,9 @@ messages = [
 ]
 
 response = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input=messages,
-    max_output_tokens=400
+    max_output_tokens=16384
 )
 
 # Add assistant's response to conversation
@@ -501,9 +513,9 @@ messages.append({"role": "assistant", "content": response.output_text})
 messages.append({"role": "user", "content": "Now optimize it with memoization"})
 
 response2 = client.responses.create(
-    model="gpt-5-mini",
+    model="gpt-6.1-sol",
     input=messages,
-    max_output_tokens=400
+    max_output_tokens=16384
 )
 print(response2.output_text)
 ```
@@ -517,9 +529,9 @@ const messages: Array<{role: string, content: string}> = [
 ];
 
 const response = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: messages,
-    max_output_tokens: 400
+    max_output_tokens: 16384
 });
 
 // Add assistant's response to conversation
@@ -529,9 +541,9 @@ messages.push({ role: "assistant", content: response.output_text ?? "" });
 messages.push({ role: "user", content: "Now optimize it with memoization" });
 
 const response2 = await client.responses.create({
-    model: "gpt-5-mini",
+    model: "gpt-6.1-sol",
     input: messages,
-    max_output_tokens: 400
+    max_output_tokens: 16384
 });
 console.log(response2.output_text);
 ```
@@ -566,7 +578,7 @@ console.log(response2.output_text);
 ### General Issues
 
 **❌ "Model not found"**  
-→ Ensure deployment completed: `azd env get-values` should show `AZURE_OPENAI_GPT_DEPLOYMENT_NAME=gpt-5-mini`  
+→ Ensure deployment completed: `azd env get-values` should show `AZURE_OPENAI_GPT_DEPLOYMENT_NAME=gpt-6.1-sol`  
 → Check deployment status in Azure portal
 
 **❌ "Rate limit exceeded"**  
@@ -585,24 +597,24 @@ This template uses Azure OpenAI's **new v1 API endpoint** which:
 
 ## About the Responses API
 
-This template uses the **Responses API**, which provides a cleaner interface optimized for GPT-5-mini reasoning models:
+This template uses the **Responses API**, which provides a cleaner interface optimized for GPT-6.1 Sol reasoning models:
 
 **Key Benefits:**
 - ✅ Simpler interface - direct `input` parameter instead of message formatting
 - ✅ Direct access to reasoning tokens via `response.usage.output_tokens_details.reasoning_tokens`
 - ✅ Supports both simple text and conversation format
-- ✅ Designed for reasoning models like GPT-5-mini
+- ✅ Designed for reasoning models like GPT-6.1 Sol
 - ✅ Cleaner response structure with `output_text` property
 
-**Important:** Use `max_output_tokens=1000` (not 50-200) to account for GPT-5-mini's internal reasoning process. The model uses reasoning tokens internally before generating the final output.
+**Important:** Use a large `max_output_tokens` (the examples default to 16384). The limit includes GPT-6.1 Sol's internal reasoning tokens, and a low limit can end the response before any text is produced.
 
 ## Next Steps
 
 🔧 **Customize the examples**: Edit the example files in `src/` for your use case  
 📚 **Learn more**: [Azure OpenAI documentation](https://learn.microsoft.com/azure/ai-services/openai/)  
 🚀 **Add more models**: Edit `infra/resources.bicep` to deploy additional models  
-⚡ **Scale up**: Increase capacity or try GPT-5 full model  
+⚡ **Scale up**: Increase capacity  
 
 ---
 
-**🎉 You're now running GPT-5-mini on Azure!** Experience the future of AI reasoning.
+**🎉 You're now running GPT-6.1 Sol on Azure!** Experience the future of AI reasoning.

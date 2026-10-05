@@ -10,6 +10,9 @@
     },
     "principalId": {
       "value": "${AZURE_PRINCIPAL_ID}"
+    },
+    "gptCapacity": {
+      "value": "${AZURE_OPENAI_CAPACITY=10}"
     }
   }
 }
