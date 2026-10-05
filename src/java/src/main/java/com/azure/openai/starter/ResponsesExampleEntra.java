@@ -8,7 +8,6 @@ import com.openai.credential.BearerTokenCredential;
 import com.openai.models.Reasoning;
 import com.openai.models.ReasoningEffort;
 import com.openai.models.responses.Response;
-import com.openai.models.responses.ResponseCreateParams;
 import com.openai.models.responses.ResponseInputItem;
 import com.openai.models.responses.ResponseOutputText;
 import com.openai.models.responses.ResponseStatus;
@@ -30,14 +29,13 @@ public class ResponsesExampleEntra {
         // Get required environment variables - throws if missing
         String endpoint = System.getenv("AZURE_OPENAI_ENDPOINT");
 
-        if (endpoint == null || endpoint.isBlank()) {
+        if (endpoint == null) {
             System.err.println("Error: AZURE_OPENAI_ENDPOINT must be set");
             System.exit(1);
         }
+
+        // Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
         String model = System.getenv().getOrDefault("AZURE_OPENAI_GPT_DEPLOYMENT_NAME", "gpt-6.1-sol");
-        if (model.isBlank()) {
-            throw new IllegalArgumentException("AZURE_OPENAI_GPT_DEPLOYMENT_NAME must not be empty");
-        }
         String effort = System.getenv().getOrDefault("AZURE_OPENAI_REASONING_EFFORT", "medium");
         if (!Set.of("low", "medium", "high", "xhigh", "max").contains(effort)) {
             throw new IllegalArgumentException("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max");
@@ -49,7 +47,7 @@ public class ResponsesExampleEntra {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000", e);
         }
-        if (!tokens.matches("[0-9]+") || maxOutputTokens < 16 || maxOutputTokens > 128000) {
+        if (maxOutputTokens < 16 || maxOutputTokens > 128000) {
             throw new IllegalArgumentException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000");
         }
         Reasoning reasoning = Reasoning.builder().effort(ReasoningEffort.of(effort)).build();
@@ -73,9 +71,9 @@ public class ResponsesExampleEntra {
         // Example 1: Simple text input with Responses API
         System.out.println("Example 1: Simple text input");
         Response response1 = client.responses().create(
-                ResponseCreateParams.builder()
+                com.openai.models.responses.ResponseCreateParams.builder()
                         .model(model)
-                        .input(ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms in at most 150 words."))
+                        .input(com.openai.models.responses.ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms"))
                         .reasoning(reasoning)
                         .maxOutputTokens(maxOutputTokens)
                         .build()
@@ -92,14 +90,14 @@ public class ResponsesExampleEntra {
                         .build()),
                 ResponseInputItem.ofMessage(ResponseInputItem.Message.builder()
                         .role(ResponseInputItem.Message.Role.USER)
-                        .addInputTextContent("Design a scalable web application architecture in at most 150 words.")
+                        .addInputTextContent("Design a scalable web application architecture.")
                         .build())
         );
 
         Response response2 = client.responses().create(
-                ResponseCreateParams.builder()
+                com.openai.models.responses.ResponseCreateParams.builder()
                         .model(model)
-                        .input(ResponseCreateParams.Input.ofResponse(responseInputItems))
+                        .input(com.openai.models.responses.ResponseCreateParams.Input.ofResponse(responseInputItems))
                         .reasoning(reasoning)
                         .maxOutputTokens(maxOutputTokens)
                         .build()

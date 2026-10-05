@@ -26,9 +26,6 @@ func envOrDefault(name, fallback string) string {
 
 func loadOptions() (string, shared.ReasoningEffort, int64) {
 	model := envOrDefault("AZURE_OPENAI_GPT_DEPLOYMENT_NAME", "gpt-6.1-sol")
-	if strings.TrimSpace(model) == "" {
-		log.Fatal("AZURE_OPENAI_GPT_DEPLOYMENT_NAME must not be empty")
-	}
 	effort := shared.ReasoningEffort(envOrDefault("AZURE_OPENAI_REASONING_EFFORT", "medium"))
 	switch effort {
 	case shared.ReasoningEffortLow, shared.ReasoningEffortMedium, shared.ReasoningEffortHigh, shared.ReasoningEffortXhigh, shared.ReasoningEffortMax:
@@ -37,7 +34,7 @@ func loadOptions() (string, shared.ReasoningEffort, int64) {
 	}
 	tokens := envOrDefault("AZURE_OPENAI_MAX_OUTPUT_TOKENS", "16384")
 	maxOutputTokens, err := strconv.ParseInt(tokens, 10, 64)
-	if err != nil || strings.Trim(tokens, "0123456789") != "" || maxOutputTokens < 16 || maxOutputTokens > 128000 {
+	if err != nil || maxOutputTokens < 16 || maxOutputTokens > 128000 {
 		log.Fatal("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000")
 	}
 	return model, effort, maxOutputTokens
@@ -112,7 +109,7 @@ func main() {
 
 	endpoint := os.Getenv("AZURE_OPENAI_ENDPOINT")
 
-	if strings.TrimSpace(endpoint) == "" {
+	if endpoint == "" {
 		log.Fatalf("Missing AZURE_OPENAI_ENDPOINT environment variable")
 	}
 	model, effort, maxOutputTokens := loadOptions()
@@ -126,7 +123,7 @@ func main() {
 	resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
 		Model: model,
 		Input: responses.ResponseNewParamsInputUnion{
-			OfString: openai.String("Explain quantum computing in simple terms in at most 150 words."),
+			OfString: openai.String("Explain quantum computing in simple terms"),
 		},
 		Reasoning:       shared.ReasoningParam{Effort: effort},
 		MaxOutputTokens: openai.Int(maxOutputTokens),
@@ -156,7 +153,7 @@ func main() {
 					OfMessage: &responses.EasyInputMessageParam{
 						Role: responses.EasyInputMessageRoleUser,
 						Content: responses.EasyInputMessageContentUnionParam{
-							OfString: openai.String("Design a scalable web application architecture in at most 150 words."),
+							OfString: openai.String("Design a scalable web application architecture."),
 						},
 					},
 				},

@@ -5,33 +5,31 @@ This demonstrates the Responses API with the GPT-6.1 Sol reasoning model.
 """
 
 import os
+import sys
 
 from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.responses import Response
 
-load_dotenv()
+load_dotenv(override=True)
 
 
-def main() -> None:
+def main():
     """Run Responses API examples."""
     print("Azure OpenAI GPT-6.1 Sol - Responses API\n")
     
     # Get required environment variables - raises KeyError if missing
     endpoint = os.environ["AZURE_OPENAI_ENDPOINT"]
     api_key = os.environ["AZURE_OPENAI_API_KEY"]
-    if not endpoint.strip() or not api_key.strip():
-        raise ValueError("AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY must not be empty")
+
+    # Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
     model = os.getenv("AZURE_OPENAI_GPT_DEPLOYMENT_NAME", "gpt-6.1-sol")
-    if not model.strip():
-        raise ValueError("AZURE_OPENAI_GPT_DEPLOYMENT_NAME must not be empty")
     effort = os.getenv("AZURE_OPENAI_REASONING_EFFORT", "medium")
-    if effort != "low" and effort != "medium" and effort != "high" and effort != "xhigh" and effort != "max":
+    if effort not in ("low", "medium", "high", "xhigh", "max"):
         raise ValueError("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max")
-    tokens = os.getenv("AZURE_OPENAI_MAX_OUTPUT_TOKENS", "16384")
-    if not tokens.isascii() or not tokens.isdecimal() or not 16 <= int(tokens) <= 128000:
+    max_output_tokens = int(os.getenv("AZURE_OPENAI_MAX_OUTPUT_TOKENS", "16384"))
+    if not 16 <= max_output_tokens <= 128000:
         raise ValueError("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000")
-    max_output_tokens = int(tokens)
     print(f"Deployment: {model}; reasoning effort: {effort}\n")
     
     # Initialize OpenAI client with Azure endpoint (v1 API path)
@@ -44,7 +42,7 @@ def main() -> None:
     print("Example 1: Simple text input\n")
     response = client.responses.create(
         model=model,
-        input="Explain quantum computing in simple terms in at most 150 words.",
+        input="Explain quantum computing in simple terms",
         reasoning={"effort": effort},
         max_output_tokens=max_output_tokens
     )
@@ -56,7 +54,7 @@ def main() -> None:
         model=model,
         input=[
             {"role": "system", "content": "You are an Azure cloud architect."},
-            {"role": "user", "content": "Design a scalable web application architecture in at most 150 words."}
+            {"role": "user", "content": "Design a scalable web application architecture."}
         ],
         reasoning={"effort": effort},
         max_output_tokens=max_output_tokens

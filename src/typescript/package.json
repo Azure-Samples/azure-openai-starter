@@ -5,7 +5,6 @@
   "main": "responses_example.js",
   "scripts": {
     "start": "tsx responses_example.ts",
-    "start:entra": "tsx responses_example_entra.ts",
     "build": "tsc",
     "dev": "tsx watch responses_example.ts"
   },

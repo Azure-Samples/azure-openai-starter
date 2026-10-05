@@ -6,7 +6,6 @@
 // This demonstrates the Responses API with the GPT-6.1 Sol reasoning model.
 
 using System.ClientModel;
-using System.Globalization;
 
 using OpenAI;
 using OpenAI.Responses;
@@ -22,17 +21,14 @@ var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")
                ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
 var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")
              ?? throw new InvalidOperationException("AZURE_OPENAI_API_KEY environment variable is required");
-if (string.IsNullOrWhiteSpace(endpoint) || string.IsNullOrWhiteSpace(apiKey))
-    throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY must not be empty");
 
+// Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
 var model = Environment.GetEnvironmentVariable("AZURE_OPENAI_GPT_DEPLOYMENT_NAME") ?? "gpt-6.1-sol";
-if (string.IsNullOrWhiteSpace(model))
-    throw new InvalidOperationException("AZURE_OPENAI_GPT_DEPLOYMENT_NAME must not be empty");
 var effort = Environment.GetEnvironmentVariable("AZURE_OPENAI_REASONING_EFFORT") ?? "medium";
 if (effort is not ("low" or "medium" or "high" or "xhigh" or "max"))
     throw new InvalidOperationException("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max");
 var tokens = Environment.GetEnvironmentVariable("AZURE_OPENAI_MAX_OUTPUT_TOKENS") ?? "16384";
-if (!int.TryParse(tokens, NumberStyles.None, CultureInfo.InvariantCulture, out var maxOutputTokens)
+if (!int.TryParse(tokens, out var maxOutputTokens)
     || maxOutputTokens < 16 || maxOutputTokens > 128000)
     throw new InvalidOperationException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000");
 Console.WriteLine($"Deployment: {model}; reasoning effort: {effort}");
@@ -61,7 +57,7 @@ Console.WriteLine("Example 1: Simple text input");
 Console.WriteLine();
 
 ResponseResult response1 = await responsesClient.CreateResponseAsync(CreateOptions(
-    [ResponseItem.CreateUserMessageItem("Explain quantum computing in simple terms in at most 150 words.")]));
+    [ResponseItem.CreateUserMessageItem("Explain quantum computing in simple terms")]));
 PrintResponse(response1);
 
 // Example 2: Conversation format
@@ -71,7 +67,7 @@ Console.WriteLine();
 var messages = new List<ResponseItem>
 {
     ResponseItem.CreateSystemMessageItem("You are an Azure cloud architect."),
-    ResponseItem.CreateUserMessageItem("Design a scalable web application architecture in at most 150 words.")
+    ResponseItem.CreateUserMessageItem("Design a scalable web application architecture.")
 };
 
 ResponseResult response2 = await responsesClient.CreateResponseAsync(CreateOptions(messages));

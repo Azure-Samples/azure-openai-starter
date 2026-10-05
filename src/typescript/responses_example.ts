@@ -7,25 +7,33 @@ import "dotenv/config";
 import OpenAI from "openai";
 import type { Response } from "openai/resources/responses/responses";
 
+function checkEnvironment(): void {
+    const missing = [];
+    if (!process.env.AZURE_OPENAI_ENDPOINT) missing.push("AZURE_OPENAI_ENDPOINT");
+    if (!process.env.AZURE_OPENAI_API_KEY) missing.push("AZURE_OPENAI_API_KEY");
+    
+    if (missing.length > 0) {
+        console.error(`Missing environment variables: ${missing.join(", ")}`);
+        process.exit(1);
+    }
+}
+
 async function main(): Promise<void> {
     console.log("Azure OpenAI GPT-6.1 Sol - Responses API\n");
     
-    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
-    const apiKey = process.env.AZURE_OPENAI_API_KEY;
-    if (!endpoint?.trim() || !apiKey?.trim()) {
-        throw new Error("AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY must not be empty");
-    }
+    checkEnvironment();
+    
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT!;
+    const apiKey = process.env.AZURE_OPENAI_API_KEY!;
+    
+    // Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
     const model = process.env.AZURE_OPENAI_GPT_DEPLOYMENT_NAME ?? "gpt-6.1-sol";
-    if (!model.trim()) {
-        throw new Error("AZURE_OPENAI_GPT_DEPLOYMENT_NAME must not be empty");
-    }
     const effort = process.env.AZURE_OPENAI_REASONING_EFFORT ?? "medium";
     if (effort !== "low" && effort !== "medium" && effort !== "high" && effort !== "xhigh" && effort !== "max") {
         throw new Error("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max");
     }
-    const tokens = process.env.AZURE_OPENAI_MAX_OUTPUT_TOKENS ?? "16384";
-    const maxOutputTokens = Number(tokens);
-    if (!/^[0-9]+$/.test(tokens) || !Number.isSafeInteger(maxOutputTokens) || maxOutputTokens < 16 || maxOutputTokens > 128000) {
+    const maxOutputTokens = Number(process.env.AZURE_OPENAI_MAX_OUTPUT_TOKENS ?? "16384");
+    if (!Number.isInteger(maxOutputTokens) || maxOutputTokens < 16 || maxOutputTokens > 128000) {
         throw new Error("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000");
     }
     console.log(`Deployment: ${model}; reasoning effort: ${effort}\n`);
@@ -42,7 +50,7 @@ async function main(): Promise<void> {
         model,
         reasoning: { effort },
         max_output_tokens: maxOutputTokens,
-        input: "Explain quantum computing in simple terms in at most 150 words."
+        input: "Explain quantum computing in simple terms"
     });
     printResponse(response1);
     
@@ -54,7 +62,7 @@ async function main(): Promise<void> {
         max_output_tokens: maxOutputTokens,
         input: [
             { role: "system", content: "You are an Azure cloud architect." },
-            { role: "user", content: "Design a scalable web application architecture in at most 150 words." }
+            { role: "user", content: "Design a scalable web application architecture." }
         ]
     });
     printResponse(response2);

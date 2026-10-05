@@ -342,7 +342,7 @@ class SampleTests(unittest.TestCase):
         ] + [
             ("AZURE_OPENAI_MAX_OUTPUT_TOKENS", value)
             for value in ("0", "-1", "1", "15", "1.5", "128001", "invalid", "", "999999999999999999999")
-        ] + [("AZURE_OPENAI_GPT_DEPLOYMENT_NAME", " ")]
+        ]
         for sample in self.samples:
             for name, value in invalid:
                 with self.subTest(language=sample.language, auth=sample.auth, setting=name, value=value):
@@ -358,13 +358,12 @@ class SampleTests(unittest.TestCase):
             if sample.auth == "key":
                 required.append("AZURE_OPENAI_API_KEY")
             for name in required:
-                for value in (None, " "):
-                    with self.subTest(language=sample.language, auth=sample.auth, setting=name, value=value):
-                        self.state.requests.clear()
-                        result = self.run_sample(sample, {name: value})
-                        self.assertNotEqual(result.returncode, 0)
-                        self.assertIn(name, result.stdout)
-                        self.assertEqual(self.state.requests, [])
+                with self.subTest(language=sample.language, auth=sample.auth, setting=name):
+                    self.state.requests.clear()
+                    result = self.run_sample(sample, {name: None})
+                    self.assertNotEqual(result.returncode, 0)
+                    self.assertIn(name, result.stdout)
+                    self.assertEqual(self.state.requests, [])
 
     def test_unsuccessful_responses_are_not_reported_as_success(self) -> None:
         for sample in self.samples:

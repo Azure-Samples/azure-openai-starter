@@ -27,14 +27,13 @@ public class ResponsesExample {
         String endpoint = System.getenv("AZURE_OPENAI_ENDPOINT");
         String apiKey = System.getenv("AZURE_OPENAI_API_KEY");
 
-        if (endpoint == null || endpoint.isBlank() || apiKey == null || apiKey.isBlank()) {
+        if (endpoint == null || apiKey == null) {
             System.err.println("Error: AZURE_OPENAI_ENDPOINT and AZURE_OPENAI_API_KEY must be set");
             System.exit(1);
         }
+
+        // Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
         String model = System.getenv().getOrDefault("AZURE_OPENAI_GPT_DEPLOYMENT_NAME", "gpt-6.1-sol");
-        if (model.isBlank()) {
-            throw new IllegalArgumentException("AZURE_OPENAI_GPT_DEPLOYMENT_NAME must not be empty");
-        }
         String effort = System.getenv().getOrDefault("AZURE_OPENAI_REASONING_EFFORT", "medium");
         if (!Set.of("low", "medium", "high", "xhigh", "max").contains(effort)) {
             throw new IllegalArgumentException("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max");
@@ -46,7 +45,7 @@ public class ResponsesExample {
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000", e);
         }
-        if (!tokens.matches("[0-9]+") || maxOutputTokens < 16 || maxOutputTokens > 128000) {
+        if (maxOutputTokens < 16 || maxOutputTokens > 128000) {
             throw new IllegalArgumentException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000");
         }
         Reasoning reasoning = Reasoning.builder().effort(ReasoningEffort.of(effort)).build();
@@ -64,7 +63,7 @@ public class ResponsesExample {
         Response response1 = client.responses().create(
                 ResponseCreateParams.builder()
                         .model(model)
-                        .input(ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms in at most 150 words."))
+                        .input(ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms"))
                         .reasoning(reasoning)
                         .maxOutputTokens(maxOutputTokens)
                         .build()
@@ -81,7 +80,7 @@ public class ResponsesExample {
                         .build()),
                 ResponseInputItem.ofMessage(ResponseInputItem.Message.builder()
                         .role(ResponseInputItem.Message.Role.USER)
-                        .addInputTextContent("Design a scalable web application architecture in at most 150 words.")
+                        .addInputTextContent("Design a scalable web application architecture.")
                         .build())
         );
 

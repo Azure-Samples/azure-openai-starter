@@ -12,174 +12,645 @@ products:
 - azure
 urlFragment: azure-openai-starter
 name: The Azure OpenAI Starter Kit
-description: Deploy Azure OpenAI with GPT-6.1 Sol using one CLI command. Includes Python, TypeScript, Go, .NET and Java examples using the Responses API.
+description: Deploy Azure OpenAI with GPT-6.1 Sol using one CLI command. Includes OpenAI SDK for Python, TypeScript, Go, .NET and Java examples using the Responses API.
 ---
 -->
 # The Azure OpenAI Starter Kit
 
-**Deploy GPT-6.1 Sol on Azure OpenAI with one command.**
+**The fastest way to get started with Azure OpenAI.**
 
-This starter provisions **`gpt-6.1-sol` version `2026-09-29`** with the **GlobalStandard** deployment SKU. It includes official OpenAI SDK examples for **Python, TypeScript, Go, .NET and Java**, using the **Responses v1 API** with either Microsoft Entra ID or an API key.
+Rapidly deploy an Azure OpenAI instance with a GPT-6.1 Sol model using a single CLI command. Includes OpenAI SDK for Python, TypeScript, Go, .NET and Java examples using the Responses API. 
 
 ## Architecture Overview
 
 ![Azure OpenAI Starter Kit Architecture](./images/aoaistarterimage.png)
 
-`azd up` provisions an Azure OpenAI account, the model deployment, and a **Cognitive Services User** role assignment for the deploying user. Infrastructure is defined in [Bicep](./infra/main.bicep). The editable diagram is [architecture.svg](./images/architecture.svg).
-
-To regenerate the diagram after editing the SVG:
-
-```bash
-npx --yes svgexport images/architecture.svg images/aoaistarterimage.png 1440:
-```
+*The Azure OpenAI Starter Kit provides Infrastructure as Code deployment with one-command setup and production-ready client examples for Python, TypeScript, Go, .NET and Java, featuring secure EntraID authentication and the new Responses API optimized for GPT-6.1 Sol.*
 
 ## Prerequisites
 
-- An [Azure subscription](https://azure.microsoft.com/pricing/purchase-options/azure-account) with access to GPT-6.1 Sol and sufficient GlobalStandard quota in a supported region.
-- [Azure Developer CLI (azd)](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd).
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli).
-- A language runtime and its dependencies; see the [client setup guide](./CLIENT_README.md#prerequisites).
-
-The template offers a verified subset of supported regions. Availability, access restrictions and subscription quota can change; check the [Azure model catalog](https://ai.azure.com/catalog/models/gpt-6.1-sol) and [regional availability](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability) before deploying.
-
-> GPT-6.1 Sol is a different model and pricing tier from the previous GPT-5-mini default. Deployment and inference use your Azure subscription; review [Azure OpenAI pricing](https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/).
+✅ [Azure Subscription](https://azure.microsoft.com/pricing/purchase-options/azure-account)
+✅ [Azure Developer CLI](https://learn.microsoft.com/azure/developer/azure-developer-cli/install-azd)
+✅ [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli)
 
 ## Quick Start
 
-From this repository:
-
 ```bash
+# 1. Login to Azure - both Azure CLI and Azure Developer CLI
 az login
 azd auth login
+
+# 2. Deploy GPT-6.1 Sol to Azure OpenAI 
 azd up
 ```
 
-Choose your subscription, environment name and region when prompted. A failed provisioning step fails `azd up`; it is not reported as a successful deployment.
+That's it! 🚀 You now have **Azure OpenAI** with **GPT-6.1 Sol** model deployed and ready to use!
 
-### Option A: Keyless Authentication (Recommended)
+## Next Steps
 
-Use your Azure CLI login for local development. Set the endpoint and deployment name from the azd outputs.
+### Option A: Keyless Authentication (Recommended) 🔐
 
-**Bash / zsh**
+**Use keyless authentication with Azure Identity - the secure, production-ready approach.**
 
-```bash
-export AZURE_OPENAI_ENDPOINT="$(azd env get-value AZURE_OPENAI_ENDPOINT)"
-export AZURE_OPENAI_GPT_DEPLOYMENT_NAME="$(azd env get-value AZURE_OPENAI_GPT_DEPLOYMENT_NAME)"
-export AZURE_TENANT_ID="$(az account show --query tenantId --output tsv)"
-```
+<details>
+<summary><strong>Click to expand Keyless setup and code examples</strong></summary>
 
-**PowerShell**
+#### Setup Steps
 
-```powershell
-$env:AZURE_OPENAI_ENDPOINT = azd env get-value AZURE_OPENAI_ENDPOINT
-$env:AZURE_OPENAI_GPT_DEPLOYMENT_NAME = azd env get-value AZURE_OPENAI_GPT_DEPLOYMENT_NAME
-$env:AZURE_TENANT_ID = az account show --query tenantId --output tsv
-```
-
-The template assigns the deploying user the data-plane role automatically. Role assignments may take a few minutes to propagate. For production, use a specific managed identity or workload identity with its own role assignment rather than relying on a developer credential chain.
-
-### Option B: API Key Authentication
-
-For development, set the endpoint and deployment variables above, then retrieve **one key**, not the entire JSON response:
-
-**Bash / zsh**
+<details open>
+<summary><strong>zsh/bash</strong></summary>
 
 ```bash
-export AZURE_OPENAI_API_KEY="$(az cognitiveservices account keys list \
-  --name "$(azd env get-value AZURE_OPENAI_NAME)" \
-  --resource-group "$(azd env get-value AZURE_RESOURCE_GROUP)" \
-  --query key1 --output tsv)"
+# 1. Get your endpoint
+endpoint=$(azd env get-value 'AZURE_OPENAI_ENDPOINT')
+
+# 2. Set environment variable
+export AZURE_OPENAI_ENDPOINT=$endpoint
+
+# Note: The "Cognitive Services User" role is automatically assigned to your
+# account during "azd up", so no manual role assignment is needed.
+
+# 3. Run EntraID examples
+cd src/python && python responses_example_entra.py
+# or
+cd src/typescript && tsx responses_example_entra.ts
+# or
+cd src/go && go run .
+# or
+cd src/dotnet && dotnet run responses_example_entra.cs
+# or
+cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExampleEntra"
 ```
 
-**PowerShell**
+</details>
+
+<details>
+<summary><strong>PowerShell</strong></summary>
 
 ```powershell
-$env:AZURE_OPENAI_API_KEY = az cognitiveservices account keys list `
-  --name (azd env get-value AZURE_OPENAI_NAME) `
-  --resource-group (azd env get-value AZURE_RESOURCE_GROUP) `
-  --query key1 --output tsv
+# 1. Get your endpoint
+$endpoint = azd env get-value 'AZURE_OPENAI_ENDPOINT'
+
+# 2. Set environment variable
+$env:AZURE_OPENAI_ENDPOINT=$endpoint
+
+# Note: The "Cognitive Services User" role is automatically assigned to your
+# account during "azd up", so no manual role assignment is needed.
+
+# 3. Run EntraID examples
+cd src/python && python responses_example_entra.py
+# or
+cd src/typescript && tsx responses_example_entra.ts
+# or
+cd src/go && go run .
+# or
+cd src/dotnet && dotnet run responses_example_entra.cs
+# or
+cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExampleEntra"
 ```
 
-Do not commit keys. Local/API-key authentication is enabled so both sample paths work. Disable it when deploying an Entra-only production application.
+</details>
 
-## Run a Client
+> **NOTE**: If your Azure account is bound with more than one Azure tenant, you should specify the tenant ID before running the app; otherwise you'll get an authentication error.
+>
+> ```bash
+> # zsh/bash
+> export AZURE_TENANT_ID=$(az account show --query "tenantId" -o tsv)
+>
+> # PowerShell
+> $env:AZURE_TENANT_ID = az account show --query "tenantId" -o tsv
+> ```
 
-Install dependencies as described in [CLIENT_README.md](./CLIENT_README.md), then run either authentication example from its directory:
+#### Code Samples
 
-| Language | Directory | Entra ID | API key |
-|---|---|---|---|
-| Python | [src/python](./src/python) | `python responses_example_entra.py` | `python responses_example.py` |
-| TypeScript | [src/typescript](./src/typescript) | `npm run start:entra` | `npm start` |
-| Go | [Entra](./src/go/responses_example_entra) / [key](./src/go/responses_example) | `go run .` | `go run .` |
-| .NET | [src/dotnet](./src/dotnet) | `dotnet run responses_example_entra.cs` | `dotnet run responses_example.cs` |
-| Java | [src/java](./src/java) | `mvn compile exec:java "-Dexec.mainClass=com.azure.openai.starter.ResponsesExampleEntra"` | `mvn compile exec:java "-Dexec.mainClass=com.azure.openai.starter.ResponsesExample"` |
+<details>
+<summary><strong>Python Code:</strong></summary>
 
-Every example makes two non-streaming Responses API requests: a simple question and a system/user conversation. It prints text, completion status, reasoning-token usage and total output-token usage.
+```python
+from openai import OpenAI
+from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 
-## Reasoning Modes and Configuration
+token_provider = get_bearer_token_provider(
+    DefaultAzureCredential(),
+    "https://cognitiveservices.azure.com/.default"
+)
 
-The same settings work in all five languages and both authentication paths:
+client = OpenAI(
+    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
+    api_key=token_provider
+)
 
-| Environment variable | Default | Purpose |
+response = client.responses.create(
+    model="gpt-6.1-sol",
+    input="Explain quantum computing in simple terms",
+    max_output_tokens=16384
+)
+print(response.output_text)
+```
+
+</details>
+
+<details>
+<summary><strong>TypeScript Code:</strong></summary>
+
+```typescript
+import OpenAI from "openai";
+import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+
+const tokenProvider = getBearerTokenProvider(
+    new DefaultAzureCredential(),
+    "https://cognitiveservices.azure.com/.default"
+);
+
+const client = new OpenAI({
+    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
+    apiKey: tokenProvider as any
+});
+
+const response = await client.responses.create({
+    model: "gpt-6.1-sol",
+    input: "Explain quantum computing in simple terms",
+    max_output_tokens: 16384
+});
+console.log(response.output_text);
+```
+
+</details>
+
+<details>
+<summary><strong>Go Code:</strong></summary>
+
+```go
+import (
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/openai/openai-go/v3"
+    "github.com/openai/openai-go/v3/azure"
+    "github.com/openai/openai-go/v3/option"
+    "github.com/openai/openai-go/v3/responses"
+)
+
+cred, err := azidentity.NewDefaultAzureCredential(nil)
+
+if err != nil {
+    log.Fatalf("Failed to create DefaultAzureCredential: %s", err)
+}
+
+const scope = "https://cognitiveservices.azure.com/.default"
+
+// Initialize OpenAI client with Azure endpoint and the token
+client := openai.NewClient(
+    option.WithBaseURL(endpoint+"/openai/v1/"),
+    azure.WithTokenCredential(cred, azure.WithTokenCredentialScopes([]string{scope})),
+)
+
+resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
+    Model: "gpt-6.1-sol",
+    Input: responses.ResponseNewParamsInputUnion{
+        OfString: openai.String("Explain quantum computing in simple terms"),
+    },
+    MaxOutputTokens: openai.Int(16384),
+})
+```
+
+</details>
+
+<details>
+<summary><strong>.NET Code:</strong></summary>
+
+```csharp
+#!/usr/bin/dotnet run
+
+#:package OpenAI@2.13.0
+#:package Azure.Identity@1.*
+
+using System.ClientModel.Primitives;
+using Azure.Identity;
+using OpenAI;
+using OpenAI.Responses;
+
+#pragma warning disable OPENAI001
+
+var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")
+               ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
+
+var policy = new BearerTokenPolicy(new DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default");
+var clientOptions = new ResponsesClientOptions
+{
+    Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
+};
+
+var responsesClient = new ResponsesClient(policy, clientOptions);
+
+ResponseResult response1 = await responsesClient.CreateResponseAsync(
+    "gpt-6.1-sol", "Explain quantum computing in simple terms", null);
+
+Console.WriteLine(response1.GetOutputText());
+```
+
+</details>
+
+<details>
+<summary><strong>Java Code:</strong></summary>
+
+_add the following imports_
+
+```java
+import com.azure.identity.AuthenticationUtil;
+import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.openai.client.OpenAIClient;
+import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.credential.BearerTokenCredential;
+import com.openai.models.responses.Response;
+import com.openai.models.responses.ResponseCreateParams;
+```
+_code snippet_
+
+```java
+Supplier<String> bearerTokenSupplier = AuthenticationUtil.getBearerTokenSupplier(
+    new DefaultAzureCredentialBuilder().build(), 
+    "https://cognitiveservices.azure.com/.default"
+);
+
+OpenAIClient client = OpenAIOkHttpClient.builder()
+    .baseUrl(System.getenv("AZURE_OPENAI_ENDPOINT"))
+    .credential(BearerTokenCredential.create(bearerTokenSupplier))
+    .build();
+
+Response response = client.responses().create(
+    ResponseCreateParams.builder()
+        .model("gpt-6.1-sol")
+        .input(ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms"))
+        .maxOutputTokens(16384)
+        .build()
+);
+System.out.println(response.output());
+```
+
+</details>
+
+**Why Keyless?**
+
+✅ No API keys to manage or rotate  
+✅ Better security with Azure RBAC  
+✅ Works with your Azure login  
+✅ Production-ready and enterprise-grade
+
+</details>
+
+---
+
+### Option B: API Key Authentication (Quick Start)
+
+**For quick testing and development:**
+
+<details>
+<summary><strong>Click to expand API key setup and code examples</strong></summary>
+
+#### Setup Steps
+
+<details open>
+<summary><strong>zsh/bash</strong></summary>
+
+```powershell
+# 1. Get your endpoint
+endpoint=$(azd env get-value 'AZURE_OPENAI_ENDPOINT')
+
+# 2. Get your API key
+apiKey=$(az cognitiveservices account keys list --name $(azd env get-value 'AZURE_OPENAI_NAME') --resource-group rg-$(azd env get-value 'AZURE_ENV_NAME'))
+
+# 3. Set environment variables
+export AZURE_OPENAI_ENDPOINT=$endpoint
+export AZURE_OPENAI_API_KEY=$apiKey
+
+# 4. Run API key examples
+cd src/python && python responses_example.py
+# or
+cd src/typescript && npm start
+# or
+cd src/go && go run .
+# or
+cd src/dotnet && dotnet run responses_example.cs
+# or
+cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExample"
+```
+
+</details>
+
+<details>
+<summary><strong>PowerShell</strong></summary>
+
+```powershell
+# 1. Get your endpoint
+$endpoint = azd env get-value 'AZURE_OPENAI_ENDPOINT'
+
+# 2. Get your API key
+$apiKey = az cognitiveservices account keys list --name $(azd env get-value 'AZURE_OPENAI_NAME') --resource-group rg-$(azd env get-value 'AZURE_ENV_NAME')
+
+# 3. Set environment variables
+$env:AZURE_OPENAI_ENDPOINT=$endpoint
+$env:AZURE_OPENAI_API_KEY=$apiKey
+
+# 4. Run API key examples
+cd src/python && python responses_example.py
+# or
+cd src/typescript && npm start
+# or
+cd src/go && go run .
+# or
+cd src/dotnet && dotnet run responses_example.cs
+# or
+cd src/java && mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExample"
+```
+
+</details>
+
+#### Code Samples
+
+<details>
+<summary><strong>Python Code:</strong></summary>
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"), 
+    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/"
+)
+
+response = client.responses.create(
+    model="gpt-6.1-sol",
+    input="Explain quantum computing in simple terms",
+    max_output_tokens=16384
+)
+print(response.output_text)
+```
+
+</details>
+
+<details>
+<summary><strong>TypeScript Code:</strong></summary>
+
+```typescript
+import OpenAI from 'openai';
+
+const client = new OpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`
+});
+
+const response = await client.responses.create({
+    model: "gpt-6.1-sol",
+    input: "Explain quantum computing in simple terms",
+    max_output_tokens: 16384
+});
+console.log(response.output_text);
+```
+
+</details>
+
+<details>
+<summary><strong>Go Code:</strong></summary>
+
+```go
+import (
+    "github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+    "github.com/openai/openai-go/v3"
+    "github.com/openai/openai-go/v3/azure"
+    "github.com/openai/openai-go/v3/option"
+    "github.com/openai/openai-go/v3/responses"
+)
+
+client := openai.NewClient(
+    option.WithBaseURL(endpoint+"/openai/v1/"),
+    option.WithAPIKey(apiKey),
+)
+
+resp, err := client.Responses.New(context.TODO(), responses.ResponseNewParams{
+    Model: "gpt-6.1-sol",
+    Input: responses.ResponseNewParamsInputUnion{
+        OfString: openai.String("Explain quantum computing in simple terms"),
+    },
+    MaxOutputTokens: openai.Int(16384),
+})
+```
+
+</details>
+
+<details>
+<summary><strong>.NET Code:</strong></summary>
+
+```csharp
+#!/usr/bin/dotnet run
+
+#:package OpenAI@2.13.0
+
+using System.ClientModel;
+using OpenAI;
+using OpenAI.Responses;
+
+#pragma warning disable OPENAI001
+
+var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")
+               ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
+var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")
+             ?? throw new InvalidOperationException("AZURE_OPENAI_API_KEY environment variable is required");
+
+var credential = new ApiKeyCredential(apiKey);
+var clientOptions = new ResponsesClientOptions
+{
+    Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
+};
+var responsesClient = new ResponsesClient(credential, clientOptions);
+
+ResponseResult response1 = await responsesClient.CreateResponseAsync(
+    "gpt-6.1-sol", "Explain quantum computing in simple terms", null);
+
+Console.WriteLine($"Response: {response1.GetOutputText()}");
+```
+
+</details>
+
+<details>
+<summary><strong>Java Code:</strong></summary>
+
+_add the following imports_
+
+```java
+import com.openai.client.OpenAIClient;
+import com.openai.client.okhttp.OpenAIOkHttpClient;
+import com.openai.models.responses.Response;
+import com.openai.models.responses.ResponseCreateParams;
+```
+
+_code snippet_
+
+```java
+OpenAIClient client = OpenAIOkHttpClient.builder()
+    .apiKey(System.getenv("AZURE_OPENAI_API_KEY"))
+    .baseUrl(System.getenv("AZURE_OPENAI_ENDPOINT"))
+    .build();
+
+Response response = client.responses().create(
+    ResponseCreateParams.builder()
+        .model("gpt-6.1-sol")
+        .input(ResponseCreateParams.Input.ofText("Explain quantum computing in simple terms"))
+        .maxOutputTokens(16384)
+        .build()
+);
+System.out.println(response.output());
+```
+
+</details>
+
+</details>
+
+---
+
+**📖 See [CLIENT_README.md](CLIENT_README.md) for detailed setup guide with more examples**
+
+## What This Template Includes
+
+- **Core Infrastructure**: Azure OpenAI resource with GPT-6.1 Sol deployment
+- **Optimal Configuration**: Flexible region selection, GlobalStandard SKU, v1 API
+- **Secure Authentication**: EntraID (Azure Identity) recommended + API key option
+- **Client Examples**: Python, TypeScript, Go, .NET and Java using the new Responses API
+- **Validation Scripts**: PowerShell and Bash scripts for testing
+- **Complete Documentation**: Setup guides and troubleshooting tips
+
+## What You Get
+
+✅ **GPT-6.1 Sol (2026-09-29)** - Latest reasoning model  
+✅ **Flexible region** deployment - Choose your optimal region   
+✅ **New v1 API** support - Future-proof, no version management needed  
+✅ **Automatic deployment** - Model ready to use immediately  
+✅ **Multi-language examples** - Python, TypeScript/Node.js, Go, .NET and Java clients  
+✅ **Two authentication methods** - API keys (quick start) + EntraID (production-ready)  
+✅ **Unique resource naming** - No conflicts with existing resources  
+
+## Template Structure
+
+```text
+├── azure.yaml                 # azd configuration
+├── infra/
+│   ├── main.bicep             # Main deployment template
+│   ├── main.parameters.json   # Deployment parameters
+│   └── resources.bicep        # Azure OpenAI resource definition
+├── src/
+│   ├── dotnet/
+│   │   ├── responses_example.cs         # API key authentication
+│   │   ├── responses_example_entra.cs   # EntraID authentication
+│   │   ├── global.json                  # .NET SDK configuration
+│   │   └── README.md                    # .NET prerequisites
+│   ├── go/
+│   │   ├── responses_example
+│   │   |   ├── main.go                  # API key authentication
+│   │   |   ├── go.mod                   # Go module dependencies
+│   │   |   └── go.sum                   # Go dependency checksums
+│   │   └── responses_example_entra
+│   │   |   ├── main.go                  # EntraID key authentication
+│   │   |   ├── go.mod                   # Go module dependencies
+│   │   |   └── go.sum                   # Go dependency checksums
+│   ├── java/
+│   │   ├── pom.xml                      # Maven dependencies
+│   │   └── src/main/java/com/azure/openai/starter/
+│   │       ├── ResponsesExample.java           # API key authentication
+│   │       └── ResponsesExampleEntra.java      # EntraID authentication
+│   ├── python/
+│   │   ├── responses_example.py         # API key authentication
+│   │   ├── responses_example_entra.py   # EntraID authentication
+│   │   └── requirements.txt             # Python dependencies
+│   └── typescript/
+│       ├── responses_example.ts         # API key authentication
+│       ├── responses_example_entra.ts   # EntraID authentication
+│       ├── package.json                 # Node.js dependencies
+│       └── tsconfig.json                # TypeScript configuration
+├── tests/                     # Client and validation tests
+├── CLIENT_README.md           # Detailed setup guide for all languages
+├── validate.ps1              # PowerShell validation script
+└── validate.sh               # Bash validation script
+```
+
+## Common Commands
+
+```bash
+# Redeploy with changes
+azd up
+
+# See what would be deployed
+azd provision --preview  
+
+# Debug deployment issues
+azd up --debug
+
+# Clean up everything  
+azd down
+```
+
+## Alternative Regions
+
+Want to deploy to East US 2 instead?
+
+```bash
+azd env set AZURE_LOCATION eastus2
+azd up
+```
+
+## Model Customization
+
+Want a different model? Edit `infra/resources.bicep`:
+
+```bicep
+// Current: GPT-6.1 Sol
+gptModelName: 'gpt-6.1-sol'
+gptModelVersion: '2026-09-29'
+```
+
+Check the [model catalog](https://ai.azure.com/catalog/models/gpt-6.1-sol) for model names, versions and regions before changing these. Set `azd env set AZURE_OPENAI_CAPACITY <value>` before `azd up` to change the deployment capacity (default 10, which is 10,000 tokens per minute).
+
+## Reasoning Settings
+
+All examples read these optional environment variables:
+
+| Variable | Default | Values |
 |---|---|---|
-| `AZURE_OPENAI_ENDPOINT` | Required | Account endpoint, with or without a trailing slash |
-| `AZURE_OPENAI_API_KEY` | Required for key examples only | Account API key |
-| `AZURE_OPENAI_GPT_DEPLOYMENT_NAME` | `gpt-6.1-sol` | Azure deployment name, not necessarily the underlying model ID |
-| `AZURE_OPENAI_REASONING_EFFORT` | `medium` | `low`, `medium`, `high`, `xhigh`, or `max` |
-| `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | `16384` | Integer from `16` to `128000`, including internal reasoning tokens |
+| `AZURE_OPENAI_GPT_DEPLOYMENT_NAME` | `gpt-6.1-sol` | Your deployment name |
+| `AZURE_OPENAI_REASONING_EFFORT` | `medium` | `low`, `medium`, `high`, `xhigh`, `max` |
+| `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | `16384` | 16 to 128000, includes reasoning tokens |
 
-`none` and `minimal` are **not supported** by GPT-6.1 Sol and are rejected before a request is sent. Empty or invalid settings also fail explicitly. See [model capabilities](https://developers.openai.com/api/docs/models/gpt-6.1-sol).
+GPT-6.1 Sol does not support the `none` and `minimal` reasoning efforts.
 
-The samples ask for answers of at most 150 words, while reserving a larger token budget for reasoning. Higher reasoning levels or harder prompts may require a larger budget. Incomplete responses, empty text and missing usage information produce a nonzero exit code instead of a misleading success.
-
-The deployment starts with capacity **10** (10,000 tokens/minute for this model). To change it after creating an azd environment:
-
-```bash
-azd env set AZURE_OPENAI_CAPACITY 100
-azd provision
-```
-
-Capacity is subject to subscription quota. Changing a client's token budget does not change deployment capacity.
-
-## Validation and Tests
-
-**Template checks** validate all source files and compile Bicep, without deploying resources:
-
-```powershell
-.\validate.ps1
-```
-
-```bash
-bash validate.sh
-```
-
-**Local client tests** build all five languages and exercise the actual SDK clients against a loopback HTTP server:
+## Tests
 
 ```bash
 python -m unittest discover -s tests -v
 ```
 
-These check all five reasoning efforts, both input formats, deployment and token-budget overrides, endpoint normalization, invalid configuration, and unsuccessful responses. They also run individual Python, TypeScript and Java examples copied into separate directories without sibling source files. Entra cases in the copied example tests use a synthetic token from a stub Azure CLI. Local tests do not prove Azure availability or authentication.
+This builds the Python, TypeScript, Go, .NET and Java examples and runs them against a local mock endpoint. To also run them against your own deployment, set `AZURE_OPENAI_LIVE_TESTS=1` along with `AZURE_OPENAI_ENDPOINT` and `AZURE_OPENAI_API_KEY`, and sign in with `az login`. The live tests send about 120 requests, so they use quota and cost money.
 
-**Live Azure tests** additionally cover **5 languages x 2 authentication paths x 5 reasoning efforts x 2 input formats = 100 responses**. They require an active Azure CLI login, the endpoint/deployment variables and an API key. They use Azure CLI credentials for the Entra cases.
+## Troubleshooting
 
-```powershell
-$env:AZURE_OPENAI_LIVE_TESTS = "1"
-python -m unittest discover -s tests -k live_matrix -v
-```
+**"GPT-6.1 Sol not available"** → Try `azd env set AZURE_LOCATION eastus2`
 
-```bash
-AZURE_OPENAI_LIVE_TESTS=1 python -m unittest discover -s tests -k live_matrix -v
-```
+**"Quota exceeded"** → Check your subscription quota for Azure OpenAI
 
-> Live tests are billable and run up to five sample processes concurrently. Use a dedicated test deployment with sufficient quota/capacity. No tests create or delete Azure resources automatically. The matrix covers the modes implemented by this starter, not streaming, tool calling, Chat Completions, Batch, or every hosted credential environment.
+**"Permission denied"** → Ensure you have Cognitive Services Contributor role
 
-## Cleanup
+**"Tenant provide token mismatch"** → Set `AZURE_TENANT_ID` environment variable with the proper tenant ID.
 
-```bash
-azd down
-```
+**Need debug info?** → Run `azd up --debug` for detailed logs
 
-This removes resources for the selected azd environment. Always verify the selected environment before cleanup.
+## Why This Template?
 
-See the [client guide](./CLIENT_README.md) for complete setup and troubleshooting, and the [Responses API documentation](https://learn.microsoft.com/azure/ai-foundry/openai/how-to/responses) for additional features.
+✅ **Minimal setup** - 2 commands instead of 20+  
+✅ **Latest model** - GPT-6.1 Sol with reasoning capabilities  
+✅ **Future-proof** - Uses new v1 API, no version management  
+✅ **Production-ready** - GlobalStandard SKU, EntraID auth, proper naming  
+✅ **Complete examples** - Python, TypeScript, Go, .NET and Java with error handling  
+✅ **Secure by default** - Supports keyless authentication with Azure Identity  
+✅ **Easy cleanup** - Remove everything with `azd down`  
+
+---
+
+**Happy AI building with GPT-6.1 Sol!** 🤖✨
+
+*Powered by [Azure Developer CLI](https://aka.ms/azd) | Deploys GPT-6.1 Sol (2026-09-29)*
