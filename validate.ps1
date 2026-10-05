@@ -21,18 +21,15 @@ try {
         "infra\main.parameters.json",
         "src\python\responses_example.py",
         "src\python\responses_example_entra.py",
-        "src\python\sample_options.py",
         "src\typescript\responses_example.ts",
         "src\typescript\responses_example_entra.ts",
-        "src\typescript\sample_options.ts",
         "src\go\responses_example\main.go",
         "src\go\responses_example_entra\main.go",
         "src\dotnet\responses_example.cs",
         "src\dotnet\responses_example_entra.cs",
         "src\java\pom.xml",
         "src\java\src\main\java\com\azure\openai\starter\ResponsesExample.java",
-        "src\java\src\main\java\com\azure\openai\starter\ResponsesExampleEntra.java",
-        "src\java\src\main\java\com\azure\openai\starter\SampleOptions.java"
+        "src\java\src\main\java\com\azure\openai\starter\ResponsesExampleEntra.java"
     )
     foreach ($file in $requiredFiles) {
         if (-not (Test-Path $file -PathType Leaf)) {

@@ -27,8 +27,8 @@ This is a minimal Azure Developer CLI (azd) template deploying Azure OpenAI with
   The budget includes internal reasoning. Incomplete or empty output is not success.
 - All examples demonstrate simple text and system/user conversation requests.
 - Keep settings and response checks consistent across both auth paths and all languages.
-- The .NET and Go examples remain independently runnable; Python, TypeScript and
-  Java share helpers within their language directories.
+- Every example remains independently runnable with its declared SDK dependencies.
+  Keep settings, validation and response checks in each source file, not sibling helpers.
 - Entra examples use `DefaultAzureCredential` for development and the
   `https://cognitiveservices.azure.com/.default` scope. Use a specific credential in production.
 - Never persist API keys or access tokens in source, test output or documentation.

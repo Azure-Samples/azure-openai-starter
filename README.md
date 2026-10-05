@@ -159,7 +159,7 @@ bash validate.sh
 python -m unittest discover -s tests -v
 ```
 
-These check all five reasoning efforts, both input formats, deployment and token-budget overrides, endpoint normalization, invalid configuration, and unsuccessful responses. They do not prove Azure availability or authentication.
+These check all five reasoning efforts, both input formats, deployment and token-budget overrides, endpoint normalization, invalid configuration, and unsuccessful responses. They also run individual Python, TypeScript and Java examples copied into separate directories without sibling source files. Entra cases in the copied example tests use a synthetic token from a stub Azure CLI. Local tests do not prove Azure availability or authentication.
 
 **Live Azure tests** additionally cover **5 languages x 2 authentication paths x 5 reasoning efforts x 2 input formats = 100 responses**. They require an active Azure CLI login, the endpoint/deployment variables and an API key. They use Azure CLI credentials for the Entra cases.
 

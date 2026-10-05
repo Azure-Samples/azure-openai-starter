@@ -68,6 +68,10 @@ Never put keys in source control. Python and TypeScript also support a local `.e
 
 Start each set of commands from the repository root, using either the Entra or API-key command.
 
+Each Python, TypeScript and Java example contains its own settings, validation and response
+checks. You can copy an individual example into your project without copying another source
+file. Install the language dependencies listed above.
+
 ### Python
 
 Use a virtual environment if desired, then install dependencies into the interpreter that will run the sample:
@@ -80,7 +84,7 @@ python responses_example_entra.py
 python responses_example.py
 ```
 
-Sources: [Entra](./src/python/responses_example_entra.py), [API key](./src/python/responses_example.py), [shared settings and response checks](./src/python/sample_options.py).
+Sources: [Entra](./src/python/responses_example_entra.py), [API key](./src/python/responses_example.py).
 
 ### TypeScript
 
@@ -93,7 +97,7 @@ npm run start:entra
 npm start
 ```
 
-Sources: [Entra](./src/typescript/responses_example_entra.ts), [API key](./src/typescript/responses_example.ts), [shared settings and response checks](./src/typescript/sample_options.ts).
+Sources: [Entra](./src/typescript/responses_example_entra.ts), [API key](./src/typescript/responses_example.ts).
 
 ### Go
 
@@ -137,7 +141,7 @@ mvn compile exec:java "-Dexec.mainClass=com.azure.openai.starter.ResponsesExampl
 mvn compile exec:java "-Dexec.mainClass=com.azure.openai.starter.ResponsesExample"
 ```
 
-Sources: [Entra](./src/java/src/main/java/com/azure/openai/starter/ResponsesExampleEntra.java), [API key](./src/java/src/main/java/com/azure/openai/starter/ResponsesExample.java), [shared settings and response checks](./src/java/src/main/java/com/azure/openai/starter/SampleOptions.java).
+Sources: [Entra](./src/java/src/main/java/com/azure/openai/starter/ResponsesExampleEntra.java), [API key](./src/java/src/main/java/com/azure/openai/starter/ResponsesExample.java).
 
 The samples use a deployment-name string rather than an SDK constant tied to a different model. Java extracts the output text rather than printing the SDK's internal response-object representation.
 
@@ -200,6 +204,11 @@ python -m unittest discover -s tests -v
 ```
 
 The [test suite](./tests/test_samples.py) builds all five languages and runs the actual clients against a local mock Responses endpoint. It checks request paths, authentication headers, model/deployment names, all reasoning levels, token limits, both input formats and failure behavior. Invalid configuration is checked for both authentication entry points.
+
+It also copies each Python, TypeScript and Java example into its own temporary directory
+and runs it without sibling source files. These tests use the real SDKs, a local Responses
+endpoint and a stub Azure CLI that returns a synthetic token for the Entra cases. They do
+not use your Azure credentials or verify Azure authentication.
 
 To verify Azure behavior, use a dedicated deployment, sign in with Azure CLI, and set the endpoint, deployment and API-key variables above:
 

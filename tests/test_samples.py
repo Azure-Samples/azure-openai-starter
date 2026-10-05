@@ -20,6 +20,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT = Path(__file__).resolve().parents[1]
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 MODEL = "gpt-6.1-sol"
+LOCAL_TOKEN = "local-contract-test-token"
 
 
 @dataclass(frozen=True)
@@ -148,12 +149,54 @@ def build_samples(destination: Path) -> list[Sample]:
     return samples
 
 
+def copy_standalone_sample(sample: Sample, destination: Path, java_dependencies: str) -> Sample:
+    directory = destination / f"standalone-{sample.language.lower()}-{sample.auth}"
+    directory.mkdir()
+    suffix = "_entra" if sample.auth == "entra" else ""
+    stem = f"responses_example{suffix}"
+    if sample.language == "Python":
+        source = directory / f"{stem}.py"
+        shutil.copyfile(ROOT / "src" / "python" / source.name, source)
+        return Sample(sample.language, sample.auth, [sys.executable, str(source)], directory)
+    if sample.language == "TypeScript":
+        source = directory / f"{stem}.ts"
+        shutil.copyfile(ROOT / "src" / "typescript" / source.name, source)
+        dependencies = ROOT / "src" / "typescript" / "node_modules"
+        build([tool("node"), str(dependencies / "typescript" / "bin" / "tsc"), str(source),
+               "--target", "ES2022", "--module", "commonjs", "--strict",
+               "--esModuleInterop", "--skipLibCheck", "--moduleResolution", "node",
+               "--baseUrl", str(dependencies), "--typeRoots", str(dependencies / "@types"),
+               "--types", "node", "--outDir", str(directory / "dist")], directory)
+        return Sample(sample.language, sample.auth,
+                      [tool("node"), str(directory / "dist" / f"{stem}.js")], directory)
+    if sample.language == "Java":
+        name = "ResponsesExampleEntra" if sample.auth == "entra" else "ResponsesExample"
+        source = directory / f"{name}.java"
+        shutil.copyfile(ROOT / "src" / "java" / "src" / "main" / "java" / "com" / "azure"
+                        / "openai" / "starter" / source.name, source)
+        classes = directory / "classes"
+        build([tool("javac"), "--release", "21", "-cp", java_dependencies,
+               "-sourcepath", str(directory), "-d", str(classes), str(source)], directory)
+        return Sample(sample.language, sample.auth,
+                      [tool("java"), "-cp", str(classes) + os.pathsep + java_dependencies,
+                       f"com.azure.openai.starter.{name}"], directory)
+    raise ValueError(f"Standalone source test is not defined for {sample.language}")
+
+
 class SampleTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.temporary = tempfile.TemporaryDirectory(prefix="openai-starter-tests-")
         cls.addClassCleanup(cls.temporary.cleanup)
         cls.samples = build_samples(Path(cls.temporary.name))
+        cls.local_cli = Path(cls.temporary.name) / "local-cli"
+        cls.local_cli.mkdir()
+        token = json.dumps({"accessToken": LOCAL_TOKEN, "expiresOn": "2099-01-01 00:00:00.000000",
+                            "expires_on": 4070908800, "tokenType": "Bearer"})
+        (cls.local_cli / "az.cmd").write_text(f"@echo off\necho {token}\n", encoding="utf-8")
+        cli = cls.local_cli / "az"
+        cli.write_text(f"#!/bin/sh\nprintf '%s\\n' '{token}'\n", encoding="utf-8")
+        cli.chmod(0o755)
         cls.state = StubState()
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(cls.state))
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -205,12 +248,17 @@ class SampleTests(unittest.TestCase):
             self.assertGreater(int(output_count), 0)
             self.assertLessEqual(int(reasoning_count), int(output_count))
 
-    def assert_requests(self, effort: str = "medium", model: str = MODEL, tokens: int = 16384) -> None:
+    def assert_requests(self, effort: str = "medium", model: str = MODEL, tokens: int = 16384,
+                        auth: str = "key") -> None:
         self.assertEqual(len(self.state.requests), 2)
         for request in self.state.requests:
             self.assertEqual(request["path"], "/openai/v1/responses")
-            self.assertTrue(request["authorization"] == "Bearer local-contract-test-key"
-                            or request["api-key"] == "local-contract-test-key")
+            if auth == "entra":
+                self.assertEqual(request["authorization"], f"Bearer {LOCAL_TOKEN}")
+                self.assertIsNone(request["api-key"])
+            else:
+                self.assertTrue(request["authorization"] == "Bearer local-contract-test-key"
+                                or request["api-key"] == "local-contract-test-key")
             body = request["body"]
             self.assertEqual(body["model"], model)
             self.assertEqual(body["reasoning"]["effort"], effort)
@@ -261,6 +309,32 @@ class SampleTests(unittest.TestCase):
                         "AZURE_OPENAI_MAX_OUTPUT_TOKENS": str(tokens),
                     }))
                     self.assert_requests(model="custom-sol-deployment", tokens=tokens)
+
+    def test_copied_examples_run_without_sibling_files(self) -> None:
+        destination = Path(self.temporary.name)
+        java_dependencies = (destination / "java-classpath.txt").read_text().strip()
+        settings = {
+            "PYTHONPATH": None,
+            "NODE_PATH": str(ROOT / "src" / "typescript" / "node_modules"),
+            "PATH": str(self.local_cli) + os.pathsep + os.environ.get("PATH", ""),
+        }
+        for sample in self.samples:
+            if sample.language not in ("Python", "TypeScript", "Java"):
+                continue
+            with self.subTest(language=sample.language, auth=sample.auth):
+                copied = copy_standalone_sample(sample, destination, java_dependencies)
+                self.state.requests.clear()
+                self.assert_success(self.run_sample(copied, settings))
+                self.assert_requests(auth=sample.auth)
+                for effort in EFFORTS:
+                    self.state.requests.clear()
+                    self.assert_success(self.run_sample(copied, {
+                        **settings,
+                        "AZURE_OPENAI_GPT_DEPLOYMENT_NAME": "copied-sol-deployment",
+                        "AZURE_OPENAI_REASONING_EFFORT": effort,
+                        "AZURE_OPENAI_MAX_OUTPUT_TOKENS": "4096",
+                    }))
+                    self.assert_requests(effort, "copied-sol-deployment", 4096, sample.auth)
 
     def test_invalid_configuration_fails_before_request(self) -> None:
         invalid = [
