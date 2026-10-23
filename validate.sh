@@ -27,6 +27,15 @@ required_files=(
     "src/java/pom.xml"
     "src/java/src/main/java/com/azure/openai/starter/ResponsesExample.java"
     "src/java/src/main/java/com/azure/openai/starter/ResponsesExampleEntra.java"
+    "src/python/decisions_example.py"
+    "src/typescript/decisions_example.ts"
+    "src/go/decisions_example/main.go"
+    "src/java/src/main/java/com/azure/openai/starter/DecisionsExample.java"
+    "src/dotnet/decisions_example.cs"
+    "src/ruby/decisions_example.rb"
+    "src/ruby/Gemfile"
+    "scripts/check-model-support.py"
+    "docs/decisions.md"
 )
 
 for file in "${required_files[@]}"; do

@@ -13,6 +13,15 @@
     },
     "gptCapacity": {
       "value": "${AZURE_OPENAI_CAPACITY=10}"
+    },
+    "deployDecisionsModel": {
+      "value": "${AZURE_OPENAI_DEPLOY_DECISIONS=false}"
+    },
+    "decisionsModelVersion": {
+      "value": "${AZURE_OPENAI_DECISIONS_MODEL_VERSION=2026-09-22}"
+    },
+    "decisionsCapacity": {
+      "value": "${AZURE_OPENAI_DECISIONS_CAPACITY=10}"
     }
   }
 }

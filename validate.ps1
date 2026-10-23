@@ -29,7 +29,16 @@ try {
         "src\dotnet\responses_example_entra.cs",
         "src\java\pom.xml",
         "src\java\src\main\java\com\azure\openai\starter\ResponsesExample.java",
-        "src\java\src\main\java\com\azure\openai\starter\ResponsesExampleEntra.java"
+        "src\java\src\main\java\com\azure\openai\starter\ResponsesExampleEntra.java",
+        "src\python\decisions_example.py",
+        "src\typescript\decisions_example.ts",
+        "src\go\decisions_example\main.go",
+        "src\java\src\main\java\com\azure\openai\starter\DecisionsExample.java",
+        "src\dotnet\decisions_example.cs",
+        "src\ruby\decisions_example.rb",
+        "src\ruby\Gemfile",
+        "scripts\check-model-support.py",
+        "docs\decisions.md"
     )
     foreach ($file in $requiredFiles) {
         if (-not (Test-Path $file -PathType Leaf)) {

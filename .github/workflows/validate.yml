@@ -1,0 +1,64 @@
+name: Validate starter
+
+on:
+  pull_request:
+  push:
+    branches: [main, "feat/decisions-*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: src/typescript/package-lock.json
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.27"
+          cache-dependency-path: "src/go/**/go.sum"
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - uses: Azure/setup-azd@v2
+      - name: Restore sample dependencies
+        run: |
+          python -m pip install -r src/python/requirements.txt
+          npm install --prefix src/typescript
+          for directory in src/go/*; do
+            (cd "$directory" && go mod tidy && gofmt -w main.go)
+          done
+          (cd src/ruby && bundle config set --local path vendor/bundle && bundle install)
+      - name: Upload resolved dependency manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-manifests
+          path: |
+            src/typescript/package-lock.json
+            src/go/*/go.mod
+            src/go/*/go.sum
+            src/go/*/main.go
+            src/ruby/Gemfile.lock
+      - name: Validate infrastructure and offline contracts
+        run: |
+          bash validate.sh
+          python -m unittest discover -s tests -v

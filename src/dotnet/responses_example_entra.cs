@@ -1,6 +1,6 @@
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.13.0
+#:package OpenAI@2.14.0
 #:package Azure.Identity@1.*
 
 // Azure OpenAI GPT-6.1 Sol - Responses API with Entra Authentication

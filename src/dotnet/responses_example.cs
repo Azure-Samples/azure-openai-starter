@@ -1,6 +1,6 @@
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.13.0
+#:package OpenAI@2.14.0
 
 // Azure OpenAI GPT-6.1 Sol - Responses API Example
 // This demonstrates the Responses API with the GPT-6.1 Sol reasoning model.

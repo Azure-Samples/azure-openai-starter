@@ -10,6 +10,7 @@ src/typescript/*.js.map
 # Environment variables
 .env
 .env.local
+catalog.json
 
 # Python
 src/python/__pycache__/
@@ -17,6 +18,14 @@ src/python/*.pyc
 src/python/*.pyo
 tests/__pycache__/
 .venv/
+__pycache__/
+
+# Local tooling and Ruby dependencies
+tooling/
+src/ruby/.bundle/
+src/ruby/vendor/
+src/dotnet/bin/
+src/dotnet/obj/
 
 # Java
 src/java/target/

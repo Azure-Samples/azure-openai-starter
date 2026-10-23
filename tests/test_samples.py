@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +22,39 @@ ROOT = Path(__file__).resolve().parents[1]
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 MODEL = "gpt-6.1-sol"
 LOCAL_TOKEN = "local-contract-test-token"
+
+def selected_languages(*, include_ruby: bool = False) -> set[str]:
+    supported = {"Python", "TypeScript", "Go", ".NET", "Java"}
+    if include_ruby:
+        supported.add("Ruby")
+    requested = os.getenv("STARTER_TEST_LANGUAGES")
+    if requested is None:
+        return supported
+    selected = {name.strip() for name in requested.split(",")}
+    unknown = selected - {"Python", "TypeScript", "Go", ".NET", "Java", "Ruby"}
+    if unknown:
+        raise RuntimeError(f"Unknown STARTER_TEST_LANGUAGES: {', '.join(sorted(unknown))}")
+    return selected & supported
+
+
+class LanguageSelectionTests(unittest.TestCase):
+    def test_default_selects_the_complete_matrix(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(selected_languages(), {"Python", "TypeScript", "Go", ".NET", "Java"})
+            self.assertIn("Ruby", selected_languages(include_ruby=True))
+
+    def test_explicit_selection_and_ruby_only(self) -> None:
+        with patch.dict(os.environ, {"STARTER_TEST_LANGUAGES": "Python, .NET"}):
+            self.assertEqual(selected_languages(), {"Python", ".NET"})
+        with patch.dict(os.environ, {"STARTER_TEST_LANGUAGES": "Ruby"}):
+            self.assertEqual(selected_languages(), set())
+            self.assertEqual(selected_languages(include_ruby=True), {"Ruby"})
+
+    def test_typo_or_empty_selection_is_an_error(self) -> None:
+        for value in ("", "python", "Java,Unknown"):
+            with self.subTest(value=value), patch.dict(os.environ, {"STARTER_TEST_LANGUAGES": value}):
+                with self.assertRaisesRegex(RuntimeError, "STARTER_TEST_LANGUAGES"):
+                    selected_languages()
 
 
 @dataclass(frozen=True)
@@ -120,32 +154,44 @@ def build(command: list[str], directory: Path) -> None:
 
 
 def build_samples(destination: Path) -> list[Sample]:
+    languages = selected_languages()
+    if not languages:
+        raise unittest.SkipTest("No Responses languages selected")
     python = ROOT / "src" / "python"
-    build([sys.executable, "-c",
-           "from importlib.metadata import version; import azure.identity, dotenv; "
-           "assert int(version('openai').split('.')[0]) >= 3, 'Install src/python/requirements.txt'"], python)
+    if "Python" in languages:
+        build([sys.executable, "-c",
+               "from importlib.metadata import version; import azure.identity, dotenv; "
+               "assert int(version('openai').split('.')[0]) >= 3, 'Install src/python/requirements.txt'"], python)
     typescript = ROOT / "src" / "typescript"
-    build([tool("npm"), "run", "build"], typescript)
+    if "TypeScript" in languages:
+        build([tool("npm"), "run", "build"], typescript)
     java = ROOT / "src" / "java"
     classpath_file = destination / "java-classpath.txt"
-    build([tool("mvn"), "--batch-mode", "compile", "dependency:build-classpath",
-           f"-Dmdep.outputFile={classpath_file}"], java)
-    classpath = str(java / "target" / "classes") + os.pathsep + classpath_file.read_text().strip()
+    classpath = ""
+    if "Java" in languages:
+        build([tool("mvn"), "--batch-mode", "compile", "dependency:build-classpath",
+               f"-Dmdep.outputFile={classpath_file}"], java)
+        classpath = str(java / "target" / "classes") + os.pathsep + classpath_file.read_text().strip()
     samples = []
     for auth, suffix, java_suffix in (("key", "", ""), ("entra", "_entra", "Entra")):
         stem = f"responses_example{suffix}"
-        samples.append(Sample("Python", auth, [sys.executable, str(python / f"{stem}.py")], python))
-        samples.append(Sample("TypeScript", auth, [tool("node"), str(typescript / "dist" / f"{stem}.js")], typescript))
+        if "Python" in languages:
+            samples.append(Sample("Python", auth, [sys.executable, str(python / f"{stem}.py")], python))
+        if "TypeScript" in languages:
+            samples.append(Sample("TypeScript", auth, [tool("node"), str(typescript / "dist" / f"{stem}.js")], typescript))
         go = ROOT / "src" / "go" / stem
         executable = destination / (f"go-{auth}.exe" if os.name == "nt" else f"go-{auth}")
-        build([tool("go"), "build", "-o", str(executable), "."], go)
-        samples.append(Sample("Go", auth, [str(executable)], go))
+        if "Go" in languages:
+            build([tool("go"), "build", "-o", str(executable), "."], go)
+            samples.append(Sample("Go", auth, [str(executable)], go))
         dotnet = ROOT / "src" / "dotnet"
         output = destination / f"dotnet-{auth}"
-        build([tool("dotnet"), "build", f"{stem}.cs", "--nologo", "--output", str(output)], dotnet)
-        samples.append(Sample(".NET", auth, [tool("dotnet"), str(output / f"{stem}.dll")], dotnet))
-        samples.append(Sample("Java", auth, [tool("java"), "-cp", classpath,
-                                             f"com.azure.openai.starter.ResponsesExample{java_suffix}"], java))
+        if ".NET" in languages:
+            build([tool("dotnet"), "build", f"{stem}.cs", "--nologo", "--output", str(output)], dotnet)
+            samples.append(Sample(".NET", auth, [tool("dotnet"), str(output / f"{stem}.dll")], dotnet))
+        if "Java" in languages:
+            samples.append(Sample("Java", auth, [tool("java"), "-cp", classpath,
+                                                 f"com.azure.openai.starter.ResponsesExample{java_suffix}"], java))
     return samples
 
 
@@ -312,7 +358,8 @@ class SampleTests(unittest.TestCase):
 
     def test_copied_examples_run_without_sibling_files(self) -> None:
         destination = Path(self.temporary.name)
-        java_dependencies = (destination / "java-classpath.txt").read_text().strip()
+        classpath_file = destination / "java-classpath.txt"
+        java_dependencies = classpath_file.read_text().strip() if classpath_file.exists() else ""
         settings = {
             "PYTHONPATH": None,
             "NODE_PATH": str(ROOT / "src" / "typescript" / "node_modules"),
