@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { isIP } from "node:net";
 import OpenAI from "openai";
 import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
 
@@ -11,9 +12,28 @@ async function main(): Promise<void> {
     if (!deployment.trim()) {
         throw new Error("AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME must not be empty");
     }
+    const apiKey = process.env.AZURE_OPENAI_API_KEY;
+    let url: URL;
+    try {
+        url = new URL(endpoint);
+    } catch {
+        throw new Error("AZURE_OPENAI_ENDPOINT must be the Azure resource root URL");
+    }
+    if (url.username || url.password || endpoint.includes("@") || url.pathname.replace(/\/+$/, "")
+        || endpoint.includes("?") || endpoint.includes("#") || endpoint.includes("\\")
+        || /\s/.test(endpoint) || url.port === "0") {
+        throw new Error("AZURE_OPENAI_ENDPOINT must be the Azure resource root URL");
+    }
+    const hostname = url.hostname.replace(/^\[|\]$/g, "");
+    const loopback = hostname === "localhost"
+        || (isIP(hostname) === 4 && hostname.startsWith("127."))
+        || hostname === "::1";
+    if (url.protocol !== "https:" && !(url.protocol === "http:" && loopback && apiKey)) {
+        throw new Error("AZURE_OPENAI_ENDPOINT must use HTTPS (HTTP loopback is allowed with an API key)");
+    }
     const client = new OpenAI({
         baseURL: `${endpoint.replace(/\/+$/, "")}/openai/v1/`,
-        apiKey: process.env.AZURE_OPENAI_API_KEY || getBearerTokenProvider(
+        apiKey: apiKey || getBearerTokenProvider(
             new DefaultAzureCredential(),
             "https://cognitiveservices.azure.com/.default",
         ),

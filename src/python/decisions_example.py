@@ -2,6 +2,8 @@
 
 import json
 import os
+from ipaddress import ip_address
+from urllib.parse import urlsplit
 
 from azure.identity import DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
@@ -42,6 +44,26 @@ def main() -> None:
         raise ValueError("AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME must not be empty")
 
     api_key = os.getenv("AZURE_OPENAI_API_KEY")
+    try:
+        url = urlsplit(endpoint)
+        hostname = url.hostname
+        port = url.port
+    except ValueError as error:
+        raise ValueError("AZURE_OPENAI_ENDPOINT must be the Azure resource root URL") from error
+    if (not hostname or url.username is not None or url.password is not None
+            or url.path.strip("/") or "?" in endpoint or "#" in endpoint
+            or "\\" in endpoint or any(character.isspace() for character in endpoint)
+            or port == 0):
+        raise ValueError("AZURE_OPENAI_ENDPOINT must be the Azure resource root URL")
+    try:
+        loopback = ip_address(hostname).is_loopback
+    except ValueError:
+        loopback = hostname == "localhost"
+    if url.scheme != "https" and not (url.scheme == "http" and loopback and api_key):
+        raise ValueError(
+            "AZURE_OPENAI_ENDPOINT must use HTTPS (HTTP loopback is allowed with an API key)"
+        )
+
     credential = None
     if not api_key:
         credential = DefaultAzureCredential()

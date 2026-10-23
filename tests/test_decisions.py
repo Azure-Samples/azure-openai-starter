@@ -234,6 +234,48 @@ class DecisionsTests(unittest.TestCase):
                     self.assertIn("AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME", result.stdout)
                     self.assertEqual(self.requests, [])
 
+    def test_python_and_typescript_reject_unsafe_endpoints_before_authentication(self) -> None:
+        for sample in self.samples:
+            if sample.language not in ("Python", "TypeScript"):
+                continue
+            for endpoint in ("http://example.invalid", "http://127.0.0.1.example.invalid", self.endpoint):
+                for api_key in (None, "", "local-contract-test-key"):
+                    if endpoint == self.endpoint and api_key:
+                        continue
+                    with self.subTest(language=sample.language, endpoint=endpoint, api_key=bool(api_key)):
+                        self.requests.clear()
+                        result = self.run_sample(sample, {
+                            "AZURE_OPENAI_ENDPOINT": endpoint,
+                            "AZURE_OPENAI_API_KEY": api_key,
+                            "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential",
+                        })
+                        self.assertNotEqual(result.returncode, 0, result.stdout)
+                        self.assertIn("AZURE_OPENAI_ENDPOINT must use HTTPS", result.stdout)
+                        self.assertEqual(self.requests, [])
+
+    def test_python_and_typescript_reject_invalid_resource_roots(self) -> None:
+        for sample in self.samples:
+            if sample.language not in ("Python", "TypeScript"):
+                continue
+            for endpoint in (
+                "example.invalid", "https://", "https://user:password@example.invalid",
+                "https://@example.invalid", "https://example.invalid/openai/v1/",
+                "https://example.invalid/?query=1", "https://example.invalid/#fragment",
+                "https://example.invalid?", "https://example.invalid#",
+                "https://example.invalid:invalid", "https://example.invalid:99999",
+            ):
+                for api_key in (None, "local-contract-test-key"):
+                    with self.subTest(language=sample.language, endpoint=endpoint, api_key=bool(api_key)):
+                        self.requests.clear()
+                        result = self.run_sample(sample, {
+                            "AZURE_OPENAI_ENDPOINT": endpoint,
+                            "AZURE_OPENAI_API_KEY": api_key,
+                            "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential",
+                        })
+                        self.assertNotEqual(result.returncode, 0, result.stdout)
+                        self.assertIn("resource root URL", result.stdout)
+                        self.assertEqual(self.requests, [])
+
 
 if __name__ == "__main__":
     unittest.main()

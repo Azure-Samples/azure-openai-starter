@@ -28,7 +28,10 @@ run `az login` and ensure the calling identity has the **Cognitive Services User
 role on the resource. Role assignments can take time to propagate.
 
 Do not use real credentials against a local stub or an untrusted endpoint.
-Use HTTPS for Azure. Offline tests use loopback HTTP with synthetic credentials.
+Decisions examples require an HTTPS resource root URL without user information,
+query strings, fragments or deployment paths. Plain HTTP is allowed only for
+loopback addresses with an explicitly supplied API key, for offline tests using
+synthetic credentials. Passwordless authentication always requires HTTPS.
 
 ## Python
 
