@@ -29,6 +29,16 @@ authentication (Ruby obtains a token from the Azure CLI). For local development,
 run `az login` and ensure the calling identity has the **Cognitive Services User**
 role on the resource. Role assignments can take time to propagate.
 
+If your development login has access to multiple tenants, set `AZURE_TENANT_ID`
+to the tenant that owns the resource. The TypeScript keyless examples pass this
+optional setting to `DefaultAzureCredential`, including its developer CLI
+credential, rather than relying on your CLI's current tenant.
+For Python with an azd login, explicitly set
+`AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential` as well as `AZURE_TENANT_ID`.
+The Python keyless examples then construct that official credential with the
+resource tenant and keep the bearer-token provider's automatic refresh.
+With no explicit credential selection, Python still uses `DefaultAzureCredential`.
+
 Every Decisions sample uses the configuration in [.env.example](./.env.example).
 Export those values into your shell; loading a `.env` file is not automatic in
 every runtime. For example, on Bash, copy the example to `.env`, replace the

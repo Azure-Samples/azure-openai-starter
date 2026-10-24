@@ -70,7 +70,7 @@ async function main(): Promise<void> {
         baseURL: `${endpoint.replace(/\/+$/, "")}/openai/v1/`,
         // Entra ID is the default; an explicitly set API key is the fallback.
         apiKey: apiKey || getBearerTokenProvider(
-            new DefaultAzureCredential(),
+            new DefaultAzureCredential({ tenantId: process.env.AZURE_TENANT_ID }),
             "https://cognitiveservices.azure.com/.default",
         ),
     });

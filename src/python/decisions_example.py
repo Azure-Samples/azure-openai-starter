@@ -8,7 +8,7 @@ from ipaddress import ip_address
 from pathlib import Path
 from urllib.parse import urlsplit
 
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from azure.identity import AzureDeveloperCliCredential, DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.decision import Decision
@@ -97,7 +97,12 @@ def main(argv: list[str] | None = None) -> None:
     credential = None
     # Entra ID is the default. Set AZURE_OPENAI_API_KEY only for the key fallback.
     if not api_key:
-        credential = DefaultAzureCredential()
+        # An explicitly selected azd credential needs its resource tenant forwarded.
+        credential = (
+            AzureDeveloperCliCredential(tenant_id=os.getenv("AZURE_TENANT_ID"))
+            if os.getenv("AZURE_TOKEN_CREDENTIALS", "").lower() == "azuredeveloperclicredential"
+            else DefaultAzureCredential()
+        )
         api_key = get_bearer_token_provider(
             credential, "https://cognitiveservices.azure.com/.default"
         )

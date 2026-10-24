@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class EndpointConfigurationTests(unittest.TestCase):
     def run_python_sample(self, endpoint: str, api_key: str | None, argv: list[str] | None = None) -> None:
         identity = ModuleType("azure.identity")
+        identity.AzureDeveloperCliCredential = Mock(side_effect=AssertionError("developer CLI credential construction reached"))
         identity.DefaultAzureCredential = Mock(side_effect=AssertionError("credential construction reached"))
         identity.get_bearer_token_provider = Mock(side_effect=AssertionError("token provider reached"))
         dotenv = ModuleType("dotenv")
@@ -82,6 +83,39 @@ class EndpointConfigurationTests(unittest.TestCase):
         ):
             with self.subTest(source=source), self.assertRaisesRegex(ValueError, message):
                 self.run_python_sample("https://example.invalid", None, ["--image", source])
+
+    def test_explicit_python_developer_cli_credential_forwards_the_resource_tenant(self) -> None:
+        tenant = "00000000-0000-0000-0000-000000000000"
+        for stem in ("decisions_example", "responses_example_entra"):
+            with self.subTest(sample=stem):
+                identity = ModuleType("azure.identity")
+                identity.AzureDeveloperCliCredential = Mock()
+                identity.DefaultAzureCredential = Mock(side_effect=AssertionError("unexpected default credential"))
+                identity.get_bearer_token_provider = Mock(side_effect=RuntimeError("stop before token acquisition"))
+                dotenv = ModuleType("dotenv")
+                dotenv.load_dotenv = Mock()
+                openai = ModuleType("openai")
+                openai.OpenAI = Mock(side_effect=AssertionError("unexpected client"))
+                response = ModuleType("openai.types.responses")
+                response.Response = object
+                decision = ModuleType("openai.types.decision")
+                decision.Decision = object
+                modules = {
+                    "azure.identity": identity, "dotenv": dotenv, "openai": openai,
+                    "openai.types.responses": response, "openai.types.decision": decision,
+                }
+                environment = {
+                    "AZURE_OPENAI_ENDPOINT": "https://example.invalid/",
+                    "AZURE_TENANT_ID": tenant,
+                    "AZURE_TOKEN_CREDENTIALS": "AzureDeveloperCliCredential",
+                }
+                with patch.dict(sys.modules, modules), patch.dict(os.environ, environment, clear=True):
+                    sample = runpy.run_path(str(ROOT / "src" / "python" / f"{stem}.py"))
+                    with self.assertRaisesRegex(RuntimeError, "stop before token acquisition"):
+                        sample["main"]([]) if stem == "decisions_example" else sample["main"]()
+                identity.AzureDeveloperCliCredential.assert_called_once_with(tenant_id=tenant)
+                identity.DefaultAzureCredential.assert_not_called()
+                openai.OpenAI.assert_not_called()
 
 
 if __name__ == "__main__":

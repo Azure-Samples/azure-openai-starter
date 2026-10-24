@@ -302,6 +302,46 @@ class DecisionsTests(unittest.TestCase):
                         self.assertIn("resource root URL", result.stdout)
                         self.assertEqual(self.requests, [])
 
+    def test_typescript_keyless_examples_forward_the_resource_tenant(self) -> None:
+        if not any(sample.language == "TypeScript" for sample in self.samples):
+            self.skipTest("TypeScript was not selected")
+        script = r"""
+const Module = require("node:module");
+const originalLoad = Module._load;
+const tenant = "00000000-0000-0000-0000-000000000000";
+process.env.AZURE_OPENAI_ENDPOINT = "https://example.invalid/";
+process.env.AZURE_TENANT_ID = tenant;
+delete process.env.AZURE_OPENAI_API_KEY;
+delete process.env.AZURE_OPENAI_DEPLOYMENT;
+delete process.env.AZURE_OPENAI_REASONING_EFFORT;
+delete process.env.AZURE_OPENAI_MAX_OUTPUT_TOKENS;
+Module._load = function (name, ...args) {
+    if (name === "@azure/identity") return {
+        DefaultAzureCredential: class {
+            constructor(options) {
+                if (options?.tenantId !== tenant) throw new Error("resource tenant was not forwarded");
+                throw new Error("resource tenant forwarded before token request");
+            }
+        },
+        getBearerTokenProvider() { throw new Error("unexpected token request"); }
+    };
+    return originalLoad.call(this, name, ...args);
+};
+require(process.argv[1]);
+"""
+        for stem in ("decisions_example", "responses_example_entra"):
+            with self.subTest(sample=stem):
+                self.requests.clear()
+                result = subprocess.run(
+                    [tool("node"), "-e", script, str(ROOT / "src" / "typescript" / "dist" / f"{stem}.js")],
+                    cwd=ROOT / "src" / "typescript",
+                    env={**os.environ, "DOTENV_CONFIG_PATH": os.devnull},
+                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=30,
+                )
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn("resource tenant forwarded before token request", result.stdout + result.stderr)
+                self.assertEqual(self.requests, [])
+
     def test_real_photo_inputs_inline_and_https(self) -> None:
         photo_bytes = PHOTO.read_bytes()
         self.assertTrue(photo_bytes.startswith(b"\x89PNG\r\n\x1a\n"))
