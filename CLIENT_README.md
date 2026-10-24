@@ -4,6 +4,8 @@ The starter has Responses samples for Python, TypeScript, Go, .NET and Java,
 and Decisions samples for those languages plus Ruby. Every Decisions sample
 classifies the same synthetic ticket with predicate, choice, and score questions.
 See the [tabbed Decisions article](./docs/decisions.md) for the code and API contract.
+On Windows, install PowerShell 7 (`pwsh`) to run the azd preprovision validation
+hook. Standalone language samples do not require PowerShell.
 
 ## Configuration
 
@@ -18,14 +20,29 @@ The examples append `/openai/v1/`. No data-plane `api-version` is needed.
 | `AZURE_OPENAI_GPT_DEPLOYMENT_NAME` | Responses | `gpt-6.1-sol` |
 | `AZURE_OPENAI_REASONING_EFFORT` | Responses | `medium`; also `low`, `high`, `xhigh`, `max` |
 | `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | Responses | `16384`; integer 16 through 128000 |
-| `AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME` | Decisions | `gpt-6-luna` |
+| `AZURE_OPENAI_DEPLOYMENT` | Decisions | Your Azure deployment name; defaults to `gpt-6-luna` |
 
-The two deployment names are separate. A Sol deployment cannot serve a Decisions
+The Responses and Decisions deployment settings are separate. A Sol deployment cannot serve a Decisions
 request. `model` always identifies your Azure deployment, not an arbitrary model
 selected by the SDK. An omitted Decisions API key selects passwordless
 authentication (Ruby obtains a token from the Azure CLI). For local development,
 run `az login` and ensure the calling identity has the **Cognitive Services User**
 role on the resource. Role assignments can take time to propagate.
+
+Every Decisions sample uses the configuration in [.env.example](./.env.example).
+Export those values into your shell; loading a `.env` file is not automatic in
+every runtime. For example, on Bash, copy the example to `.env`, replace the
+placeholder endpoint, then run `set -a; source .env; set +a`. In PowerShell:
+
+```powershell
+$env:AZURE_OPENAI_ENDPOINT = "https://YOUR-RESOURCE-NAME.openai.azure.com/"
+$env:AZURE_OPENAI_DEPLOYMENT = "YOUR-LUNA-DEPLOYMENT-NAME"
+Remove-Item Env:AZURE_OPENAI_API_KEY -ErrorAction SilentlyContinue
+```
+
+When provisioning with azd, obtain these values with `azd env get-value
+AZURE_OPENAI_ENDPOINT` and `azd env get-value AZURE_OPENAI_DEPLOYMENT`.
+For the explicit API-key fallback, set `AZURE_OPENAI_API_KEY`; otherwise leave it unset.
 
 Do not use real credentials against a local stub or an untrusted endpoint.
 Decisions examples require an HTTPS resource root URL without user information,
@@ -46,8 +63,8 @@ python responses_example.py
 python decisions_example.py
 ```
 
-The requirements bound the OpenAI major version and set the Decisions GA floor
-to 3.37.0. Keyless examples use Azure Identity. A `.env` file is optional; real
+The requirements pin OpenAI to the checked GA release 3.37.0. Keyless examples
+use Azure Identity. A `.env` file is optional; real
 environment variables take precedence in the Decisions example.
 
 ## TypeScript / JavaScript
@@ -63,8 +80,7 @@ npm run decisions
 ```
 
 The examples are strict TypeScript. After compilation, run the same samples as
-JavaScript, for example `node dist/decisions_example.js`. The committed npm lock
-records the dependencies resolved for this starter.
+JavaScript, for example `node dist/decisions_example.js`. The committed npm lock records the dependencies resolved for this starter.
 
 ## Go
 
@@ -128,9 +144,12 @@ not a managed-identity implementation for a long-running service.
 From the repository root:
 
 ```bash
-python scripts/check-model-support.py --region swedencentral --region eastus2
-python scripts/check-model-support.py --region swedencentral --model gpt-6-luna --format json
+python scripts/check-model-support.py --region eastus --model gpt-6-luna --sku DataZoneStandard
+python scripts/check-model-support.py --region westus3 --model gpt-6-luna --sku DataZoneStandard --format json
 ```
+
+These commands inspect Luna, not the separate Sol deployment. For a combined
+deployment, verify Sol and its GlobalStandard SKU in the selected region too.
 
 Use `--subscription NAME_OR_ID` to inspect a different subscription without
 changing the active CLI subscription. `--all-regions` is opt-in.
@@ -139,12 +158,38 @@ For an offline inspection, save the JSON returned by
 `az cognitiveservices model list --location REGION --output json` and run:
 
 ```bash
-python scripts/check-model-support.py --region swedencentral --catalog-file catalog.json
+python scripts/check-model-support.py --region eastus --catalog-file catalog.json
 ```
 
 Keep subscription-specific catalog snapshots out of source control. A catalog
 entry is not proof of quota, available capacity, a deployed model, or support
 for every Decisions feature. The script labels those limits explicitly.
+
+## Real-photo scenarios
+
+All six Decisions programs accept `--image PATH_OR_HTTPS_URL` after the usual
+command. Local PNG, JPEG, WebP or GIF files become inline base64 data URLs.
+HTTPS URLs are passed to Azure, which must be able to fetch the image without
+your browser session. The sample never downloads an arbitrary URL itself.
+
+| Language | Inline photo command from the language's sample directory |
+|---|---|
+| Python | `python decisions_example.py --image ../../images/decisions-photo.png` |
+| TypeScript | `npm run decisions -- --image ../../images/decisions-photo.png` |
+| Go (`src/go/decisions_example`) | `go run . --image ../../../images/decisions-photo.png` |
+| Java | `mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsExample -Dexec.args="--image ../../images/decisions-photo.png"` |
+| .NET | `dotnet run decisions_example.cs -- --image ../../images/decisions-photo.png` |
+| Ruby | `bundle exec ruby decisions_example.rb --image ../../images/decisions-photo.png` |
+
+To demonstrate hosted input, replace the path with:
+
+```text
+https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/astronaut.png
+```
+
+This is a real public-domain NASA photograph, not a synthetic test pattern.
+See [attribution](./images/decisions-photo.md). Choose a domain-relevant photo to
+evaluate model quality; the sample photo need not depict damage.
 
 ## Tests
 
@@ -172,8 +217,14 @@ python -m unittest discover -s tests -p test_model_support.py -v
 ```
 
 Tests for live Responses requests are disabled unless
-`AZURE_OPENAI_LIVE_TESTS=1`. Enabling them requires real key and Entra access and
-incurs charges. A local contract test passing is not a live-region certification.
+`AZURE_OPENAI_LIVE_TESTS=1`. Enabling Responses live tests requires real key and
+Entra access and incurs charges. To run Decisions with Entra only, set
+`AZURE_OPENAI_DECISIONS_LIVE_TESTS=1`, configure the common endpoint/deployment
+settings, and run the suite. It removes the key fallback and exercises text,
+inline photo and hosted photo inputs for every selected language. Do not enable
+live flags in a public CI job with credentials.
+
+A local contract test passing is not a live-region certification.
 
 ## Troubleshooting
 

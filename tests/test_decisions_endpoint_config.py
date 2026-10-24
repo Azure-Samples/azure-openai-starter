@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class EndpointConfigurationTests(unittest.TestCase):
-    def run_python_sample(self, endpoint: str, api_key: str | None) -> None:
+    def run_python_sample(self, endpoint: str, api_key: str | None, argv: list[str] | None = None) -> None:
         identity = ModuleType("azure.identity")
         identity.DefaultAzureCredential = Mock(side_effect=AssertionError("credential construction reached"))
         identity.get_bearer_token_provider = Mock(side_effect=AssertionError("token provider reached"))
@@ -31,7 +31,7 @@ class EndpointConfigurationTests(unittest.TestCase):
             environment["AZURE_OPENAI_API_KEY"] = api_key
         with patch.dict(sys.modules, modules), patch.dict(os.environ, environment, clear=True):
             sample = runpy.run_path(str(ROOT / "src" / "python" / "decisions_example.py"))
-            sample["main"]()
+            sample["main"](argv or [])
 
     def test_remote_http_is_rejected_before_client_or_credentials(self) -> None:
         for api_key in ("local-contract-test-key", None, ""):
@@ -73,6 +73,15 @@ class EndpointConfigurationTests(unittest.TestCase):
     def test_https_still_supports_passwordless_authentication(self) -> None:
         with self.assertRaisesRegex(AssertionError, "credential construction reached"):
             self.run_python_sample("https://example.invalid/", None)
+
+    def test_image_inputs_are_checked_before_authentication(self) -> None:
+        for source, message in (
+            ("http://example.invalid/photo.png", "HTTPS"),
+            ("https://user@example.invalid/photo.png", "HTTPS"),
+            ("photo.svg", "PNG, JPEG, WebP, or GIF"),
+        ):
+            with self.subTest(source=source), self.assertRaisesRegex(ValueError, message):
+                self.run_python_sample("https://example.invalid", None, ["--image", source])
 
 
 if __name__ == "__main__":

@@ -32,6 +32,10 @@ param deployDecisionsModel bool = false
 @description('GPT-6 Luna model version, listed in the public Azure model catalog.')
 param decisionsModelVersion string = '2026-09-22'
 
+@description('GPT-6 Luna deployment SKU. Verify regional support and quota before deployment.')
+@allowed(['DataZoneStandard', 'GlobalStandard'])
+param decisionsDeploymentSku string = 'DataZoneStandard'
+
 @description('GPT-6 Luna deployment capacity in thousands of tokens per minute.')
 @minValue(1)
 param decisionsCapacity int = 10
@@ -88,7 +92,7 @@ module openai 'br/public:avm/res/cognitive-services/account:0.13.2' = {
           version: decisionsModelVersion
         }
         sku: {
-          name: 'GlobalStandard'
+          name: decisionsDeploymentSku
           capacity: decisionsCapacity
         }
       }
@@ -101,4 +105,4 @@ output AZURE_OPENAI_ENDPOINT string = openai.outputs.endpoint
 output AZURE_OPENAI_NAME string = openai.outputs.name
 output AZURE_OPENAI_RESOURCE_ID string = openai.outputs.resourceId
 output AZURE_OPENAI_GPT_DEPLOYMENT_NAME string = deployGptModel ? gptModelName : ''
-output AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME string = deployDecisionsModel ? 'gpt-6-luna' : ''
+output AZURE_OPENAI_DEPLOYMENT string = deployDecisionsModel ? 'gpt-6-luna' : ''

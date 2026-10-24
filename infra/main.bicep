@@ -6,26 +6,13 @@ targetScope = 'resourceGroup'
 @maxLength(64)
 param environmentName string
 
-@description('Primary location for all resources')
-@allowed([
-  // GPT-6.1 Sol GlobalStandard availability, verified 2026-10-02.
-  // https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability
-  'australiaeast'
-  'eastus'
-  'eastus2'
-  'japaneast'
-  'koreacentral'
-  'southindia'
-  'swedencentral'
-  'switzerlandnorth'
-  'uksouth'
-])
+@description('Primary location; defaults to East US. Check the current model/SKU region table before changing. Decisions is excluded in East US 2: https://aka.ms/foundrydecisionsapi')
 @metadata({
   azd: {
     type: 'location'
   }
 })
-param location string
+param location string = 'eastus'
 
 @description('Unique token for resource naming')
 param resourceToken string = toLower(uniqueString(subscription().id, environmentName, location))
@@ -42,6 +29,10 @@ param deployDecisionsModel bool = false
 
 @description('GPT-6 Luna version. Check the current model catalog before overriding.')
 param decisionsModelVersion string = '2026-09-22'
+
+@description('Prefer DataZoneStandard where supported; choose GlobalStandard when required by availability or quota.')
+@allowed(['DataZoneStandard', 'GlobalStandard'])
+param decisionsDeploymentSku string = 'DataZoneStandard'
 
 @description('Decisions deployment capacity in thousands of tokens per minute. Billed separately from the Responses deployment.')
 @minValue(1)
@@ -60,6 +51,7 @@ module openai 'resources.bicep' = {
     gptCapacity: gptCapacity
     deployDecisionsModel: deployDecisionsModel
     decisionsModelVersion: decisionsModelVersion
+    decisionsDeploymentSku: decisionsDeploymentSku
     decisionsCapacity: decisionsCapacity
     principalId: principalId
   }
@@ -71,4 +63,4 @@ output AZURE_OPENAI_ENDPOINT string = openai.outputs.AZURE_OPENAI_ENDPOINT
 output AZURE_OPENAI_NAME string = openai.outputs.AZURE_OPENAI_NAME
 output AZURE_OPENAI_RESOURCE_ID string = openai.outputs.AZURE_OPENAI_RESOURCE_ID
 output AZURE_OPENAI_GPT_DEPLOYMENT_NAME string = openai.outputs.AZURE_OPENAI_GPT_DEPLOYMENT_NAME
-output AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME string = openai.outputs.AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME
+output AZURE_OPENAI_DEPLOYMENT string = openai.outputs.AZURE_OPENAI_DEPLOYMENT

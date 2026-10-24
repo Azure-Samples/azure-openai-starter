@@ -5,7 +5,8 @@
     clients, while C# calls Decisions with HttpClient REST. Authentication uses Microsoft Entra ID
     or an API key. Ruby can obtain an Entra token from the Azure CLI. Azure Developer CLI and
     Bicep provision an Azure OpenAI account, GPT-6.1 Sol at version 2026-09-29, and a user role.
-    GPT-6 Luna at version 2026-09-22 is an optional deployment, subject to regional rollout and quota.</desc>
+    GPT-6 Luna at version 2026-09-22 is an optional DataZoneStandard or GlobalStandard deployment,
+    subject to regional rollout and quota. The default account region is East US.</desc>
   <defs>
     <linearGradient id="canvasBg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" />
@@ -133,7 +134,7 @@
         <text x="22" y="60" font-size="15" fill="#5A6B7C">2026-09-29 · GlobalStandard · default</text>
         <line x1="22" y1="79" x2="480" y2="79" stroke="#C7DDF0" />
         <text x="22" y="111" font-size="23" font-weight="700" fill="#0A2540">GPT-6 Luna · Decisions</text>
-        <text x="22" y="137" font-size="15" fill="#5A6B7C">2026-09-22 · GlobalStandard · opt-in</text>
+        <text x="22" y="137" font-size="15" fill="#5A6B7C">2026-09-22 · DataZone / Global · opt-in</text>
         <text x="22" y="159" font-size="13" fill="#5A6B7C">Check rollout, model version, capacity and quota first</text>
       </g>
       <text x="271" y="418" text-anchor="middle" font-size="18" font-weight="600" fill="#0A2540">Two v1 APIs · separate deployment names</text>

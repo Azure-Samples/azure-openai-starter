@@ -36,6 +36,9 @@ REQUIRED = [
     "src/ruby/Gemfile",
     "scripts/check-model-support.py",
     "docs/decisions.md",
+    ".env.example",
+    "images/decisions-photo.png",
+    "images/decisions-photo.md",
 ]
 
 
@@ -87,6 +90,8 @@ class ValidationTests(unittest.TestCase):
         environment["PATH"] = str(self.bin) + os.pathsep + environment.get("PATH", "")
         environment.pop("MOCK_AZ_EXIT", None)
         environment.pop("MOCK_AZD_EXIT", None)
+        environment.pop("AZURE_OPENAI_DEPLOY_DECISIONS", None)
+        environment.pop("AZURE_LOCATION", None)
         environment.update(settings or {})
         return subprocess.run([*command, str(self.project / script)], cwd=self.directory,
                               env=environment, text=True, encoding="utf-8", errors="replace",
@@ -120,6 +125,27 @@ class ValidationTests(unittest.TestCase):
                     result = self.run_validator(script, command, {variable: "9"})
                     self.assertNotEqual(result.returncode, 0, result.stdout)
                     self.assertNotIn("Template validation successful", result.stdout)
+
+    def test_decisions_excludes_east_us_2_before_provisioning(self) -> None:
+        for script, command in self.runners:
+            for enabled, region in (("true", "eastus2"), ("TRUE", "EastUS2")):
+                with self.subTest(script=script, enabled=enabled, region=region):
+                    result = self.run_validator(script, command, {
+                        "AZURE_OPENAI_DEPLOY_DECISIONS": enabled, "AZURE_LOCATION": region,
+                    })
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn("Decisions is not enabled in East US 2", result.stdout)
+                    self.assertNotIn("Template validation successful", result.stdout)
+
+    def test_region_guard_only_blocks_the_excluded_decisions_region(self) -> None:
+        for script, command in self.runners:
+            for enabled, region in (("false", "eastus2"), ("true", "eastus"), ("TRUE", "WestUS3")):
+                with self.subTest(script=script, enabled=enabled, region=region):
+                    result = self.run_validator(script, command, {
+                        "AZURE_OPENAI_DEPLOY_DECISIONS": enabled, "AZURE_LOCATION": region,
+                    })
+                    self.assertEqual(result.returncode, 0, result.stdout)
+                    self.assertIn("Template validation successful", result.stdout)
 
 
 if __name__ == "__main__":

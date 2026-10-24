@@ -9,6 +9,8 @@ using System.Text.Json;
 using Azure.Core;
 using Azure.Identity;
 
+var imageUrl = ImageInput(args);
+var withImage = imageUrl is not null;
 var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
 if (string.IsNullOrWhiteSpace(endpoint))
     throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
@@ -22,9 +24,12 @@ if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
 if (uri.Scheme != Uri.UriSchemeHttps && !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback && useKey))
     throw new InvalidOperationException(
         "AZURE_OPENAI_ENDPOINT must use HTTPS (HTTP loopback is allowed with an API key)");
-var model = Environment.GetEnvironmentVariable("AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME") ?? "gpt-6-luna";
+// Azure deployment name; it must point to GPT-6 Luna.
+var model = Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT") ?? "gpt-6-luna";
 if (string.IsNullOrWhiteSpace(model))
-    throw new InvalidOperationException("AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME must not be empty");
+    throw new InvalidOperationException("AZURE_OPENAI_DEPLOYMENT must not be empty");
+var predicateName = withImage ? "visible_damage" : "refund_requested";
+var choiceName = withImage ? "category" : "department";
 
 var bearerToken = apiKey;
 if (!useKey)
@@ -34,44 +39,73 @@ if (!useKey)
         ["https://cognitiveservices.azure.com/.default"]));
     bearerToken = token.Token;
 }
+// Create one client and reuse its connections for subsequent requests.
 using var httpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
 
-// OpenAI .NET 2.14.0 has no typed Decisions client; use the same v1 REST contract.
+// Interim REST sample: OpenAI .NET 2.14.0 has no typed Decisions client.
+// TODO: Switch to the typed client when a stable SDK exposes Decisions.
+object input = "I was charged twice for order 123. Please refund the duplicate charge.";
+if (withImage)
+{
+    input = new[]
+    {
+        new
+        {
+            role = "user",
+            content = new object[]
+            {
+                new { type = "input_text", text = "Inspect the photo for visible damage and classify the main object." },
+                new { type = "input_image", image_url = imageUrl }
+            }
+        }
+    };
+}
+// Batch all three questions in one call.
 // [START decisions_request]
 var payload = new
 {
     model,
-    input = "I was charged twice for order 123. Please refund the duplicate charge.",
+    input,
     questions = new object[]
     {
         new
         {
             type = "predicate",
-            name = "refund_requested",
-            instructions = "Does the customer request a refund?"
+            name = predicateName,
+            instructions = withImage
+                ? "Does the photo show visible damage to the main object?"
+                : "Does the customer request a refund?"
         },
         new
         {
             type = "choice",
-            name = "department",
-            instructions = "Which department should handle this request?",
+            name = choiceName,
+            instructions = withImage
+                ? "Which category best describes the main object?"
+                : "Which department should handle this request?",
             choices = new[]
             {
-                new { value = "billing", description = "Payments and refunds." },
-                new { value = "technical", description = "Product problems." },
-                new { value = "other", description = "Other requests." }
+                new { value = withImage ? "parcel" : "billing",
+                    description = withImage ? "A package or parcel." : "Payments and refunds." },
+                new { value = withImage ? "vehicle" : "technical",
+                    description = withImage ? "A vehicle." : "Product problems." },
+                new { value = "other",
+                    description = withImage ? "None of these categories." : "Other requests." }
             }
         },
         new
         {
             type = "score",
             name = "severity",
-            instructions = "How severe is this issue?",
+            instructions = withImage ? "How severe is the visible damage?" : "How severe is this issue?",
             levels = new[]
             {
-                new { label = "Low", description = "Minor inconvenience." },
-                new { label = "Medium", description = "Needs attention." },
-                new { label = "High", description = "Urgent action needed." }
+                new { label = "Low",
+                    description = withImage ? "No damage or minor cosmetic damage." : "Minor inconvenience." },
+                new { label = "Medium",
+                    description = withImage ? "Visible damage that needs attention." : "Needs attention." },
+                new { label = "High",
+                    description = withImage ? "Severe damage or loss of function." : "Urgent action needed." }
             }
         }
     }
@@ -97,14 +131,21 @@ var answers = Required(root, "answers", JsonValueKind.Array);
 if (answers.GetArrayLength() == 0)
     throw new InvalidDataException("Decisions response has empty answers");
 var usage = Required(root, "usage", JsonValueKind.Object);
-RequiredInteger(usage, "input_tokens");
-RequiredInteger(usage, "output_tokens");
-RequiredInteger(usage, "total_tokens");
+var inputTokens = RequiredInteger(usage, "input_tokens");
+var outputTokens = RequiredInteger(usage, "output_tokens");
+var totalTokens = RequiredInteger(usage, "total_tokens");
 
 var lines = new List<string>();
+var expectedNames = new HashSet<string>([predicateName, choiceName, "severity"], StringComparer.Ordinal);
+var seen = new HashSet<string>(StringComparer.Ordinal);
 foreach (var answer in answers.EnumerateArray())
 {
-    var name = JsonSerializer.Serialize(RequiredString(answer, "name"));
+    var rawName = RequiredString(answer, "name");
+    var name = JsonSerializer.Serialize(rawName);
+    if (!expectedNames.Contains(rawName))
+        throw new InvalidDataException($"Decisions response has an unknown answer name: {name}");
+    if (!seen.Add(rawName))
+        throw new InvalidDataException($"Decisions response has a duplicate answer: {name}");
     var type = RequiredString(answer, "type");
     switch (type)
     {
@@ -114,23 +155,35 @@ foreach (var answer in answers.EnumerateArray())
         case "choice":
             var choice = RequiredChoice(answer, "choice");
             var confidence = RequiredNumber(answer, "confidence", unit: true);
-            foreach (var item in Required(answer, "probabilities", JsonValueKind.Array).EnumerateArray())
+            var choiceProbabilities = Required(answer, "probabilities", JsonValueKind.Array);
+            if (choiceProbabilities.GetArrayLength() == 0)
+                throw new InvalidDataException($"Choice answer {name} is missing probabilities");
+            var choiceOptions = new List<string>();
+            foreach (var item in choiceProbabilities.EnumerateArray())
             {
-                RequiredChoice(item, "value");
-                RequiredNumber(item, "probability", unit: true);
+                var value = RequiredChoice(item, "value");
+                var chance = RequiredNumber(item, "probability", unit: true);
+                choiceOptions.Add($"{{value={value}; probability={chance}}}");
             }
-            lines.Add($"{name} (choice): value={choice}; confidence={confidence}");
+            lines.Add($"{name} (choice): value={choice}; confidence={confidence}; "
+                + $"probabilities=[{string.Join(", ", choiceOptions)}]");
             break;
         case "score":
             var score = RequiredNumber(answer, "score");
             var scoreConfidence = RequiredNumber(answer, "confidence", unit: true);
-            foreach (var item in Required(answer, "probabilities", JsonValueKind.Array).EnumerateArray())
+            var scoreProbabilities = Required(answer, "probabilities", JsonValueKind.Array);
+            if (scoreProbabilities.GetArrayLength() == 0)
+                throw new InvalidDataException($"Score answer {name} is missing probabilities");
+            var scoreOptions = new List<string>();
+            foreach (var item in scoreProbabilities.EnumerateArray())
             {
-                RequiredString(item, "label");
-                RequiredInteger(item, "value");
-                RequiredNumber(item, "probability", unit: true);
+                var label = JsonSerializer.Serialize(RequiredString(item, "label"));
+                var value = RequiredInteger(item, "value");
+                var chance = RequiredNumber(item, "probability", unit: true);
+                scoreOptions.Add($"{{label={label}; value={value}; probability={chance}}}");
             }
-            lines.Add($"{name} (score): score={score}; confidence={scoreConfidence}");
+            lines.Add($"{name} (score): score={score}; confidence={scoreConfidence}; "
+                + $"probabilities=[{string.Join(", ", scoreOptions)}]");
             break;
         case "refusal":
             lines.Add($"{name} (refusal): refused");
@@ -139,8 +192,76 @@ foreach (var answer in answers.EnumerateArray())
             throw new InvalidDataException($"Unknown Decisions answer type: {JsonSerializer.Serialize(type)}");
     }
 }
+foreach (var expected in expectedNames)
+    if (!seen.Contains(expected))
+        throw new InvalidDataException($"Decisions response is missing answer: {expected}");
+var usageLine = $"Usage: input_tokens={inputTokens}; output_tokens={outputTokens}; total_tokens={totalTokens}";
+if (usage.TryGetProperty("input_tokens_details", out var inputDetails))
+{
+    if (inputDetails.ValueKind != JsonValueKind.Object)
+        throw new InvalidDataException("Decisions response has invalid input_tokens_details");
+    foreach (var field in new[] { "cached_tokens", "cache_write_tokens" })
+        if (inputDetails.TryGetProperty(field, out _))
+            usageLine += $"; {field}={RequiredInteger(inputDetails, field)}";
+}
+if (usage.TryGetProperty("output_tokens_details", out var outputDetails))
+{
+    if (outputDetails.ValueKind != JsonValueKind.Object)
+        throw new InvalidDataException("Decisions response has invalid output_tokens_details");
+    if (outputDetails.TryGetProperty("reasoning_tokens", out _))
+        usageLine += $"; reasoning_tokens={RequiredInteger(outputDetails, "reasoning_tokens")}";
+}
+lines.Add(usageLine);
 foreach (var line in lines)
     Console.WriteLine(line);
+
+static string? ImageInput(string[] args)
+{
+    if (args.Length == 0)
+        return null;
+    if (args.Length != 2 || args[0] != "--image" || string.IsNullOrWhiteSpace(args[1]))
+        throw new ArgumentException("Usage: dotnet run decisions_example.cs -- [--image PATH_OR_HTTPS_URL]");
+    var source = args[1];
+    if (source.Contains("://", StringComparison.Ordinal))
+    {
+        if (!Uri.TryCreate(source, UriKind.Absolute, out var image) || image.Scheme != Uri.UriSchemeHttps
+            || string.IsNullOrEmpty(image.Host) || !string.IsNullOrEmpty(image.UserInfo)
+            || source.Contains('#'))
+            throw new ArgumentException("Image URL must use HTTPS with a host, no credentials, and no fragment");
+        return source;
+    }
+    var mime = Path.GetExtension(source).ToLowerInvariant() switch
+    {
+        ".png" => "image/png",
+        ".jpg" or ".jpeg" => "image/jpeg",
+        ".webp" => "image/webp",
+        ".gif" => "image/gif",
+        _ => throw new ArgumentException("Image file must be PNG, JPEG, WebP, or GIF")
+    };
+    const int maxBytes = 32 * 1024 * 1024;
+    if (!File.Exists(source))
+        throw new ArgumentException("Image file must exist and be a readable regular file");
+    try
+    {
+        using var file = File.OpenRead(source);
+        var size = file.Length;
+        if (size <= 0 || size > maxBytes)
+            throw new ArgumentException("Image file must be nonempty and at most 32 MiB");
+        var data = new byte[(int)size];
+        file.ReadExactly(data);
+        if (file.ReadByte() != -1)
+            throw new ArgumentException("Image file changed while reading; try again");
+        return $"data:{mime};base64,{Convert.ToBase64String(data)}";
+    }
+    catch (IOException)
+    {
+        throw new ArgumentException("Image file must exist and be readable");
+    }
+    catch (UnauthorizedAccessException)
+    {
+        throw new ArgumentException("Image file must exist and be readable");
+    }
+}
 
 static JsonElement Required(JsonElement parent, string name, JsonValueKind kind)
 {

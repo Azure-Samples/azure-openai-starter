@@ -7,3 +7,12 @@ metadata:
 workflows:
   up:
     - azd: provision
+
+hooks:
+  preprovision:
+    windows:
+      shell: pwsh
+      run: ./validate.ps1
+    posix:
+      shell: sh
+      run: bash ./validate.sh
