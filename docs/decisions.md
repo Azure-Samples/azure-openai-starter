@@ -29,8 +29,10 @@ treating it as a negative predicate answer or as an HTTP transport failure.
 - `AZURE_OPENAI_DEPLOYMENT` set to your Luna deployment name;
   the samples default to `gpt-6-luna`.
 - Passwordless access with an identity assigned Cognitive Services User.
-  Leave `AZURE_OPENAI_API_KEY` unset for this default. Ruby uses your `az login`
-  session; the other languages use Azure Identity `DefaultAzureCredential`.
+  Leave `AZURE_OPENAI_API_KEY` unset for this default. Ruby uses your Azure CLI
+  session, or your `azd` login when `AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential`.
+  The other languages use Azure Identity; see the client guide for optional
+  tenant and explicit developer-credential selection.
   Setting `AZURE_OPENAI_API_KEY` explicitly selects the API-key fallback.
 - The [runtime and dependencies for your language](../CLIENT_README.md).
 

@@ -19,6 +19,10 @@ Azure CLI and run `az login`; the example obtains an Azure OpenAI access token
 with `az account get-access-token` without printing it. The signed-in identity
 needs Azure OpenAI data-plane access. There is no official Ruby Azure Identity
 credential class; the sample deliberately uses the Azure CLI instead.
+If you use an Azure Developer CLI login instead, set
+`AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential` to select `azd auth token`.
+Set `AZURE_TENANT_ID` to the resource's tenant when your login spans tenants;
+the sample forwards it to either CLI without changing your saved CLI context.
 The endpoint is the **resource root**, not an `/openai/v1/` URL.
 `AZURE_OPENAI_DEPLOYMENT` is the **Azure deployment name**, which must point to
 GPT-6 Luna. It defaults to `gpt-6-luna` only when unset; an explicitly blank value
@@ -47,3 +51,6 @@ choice/score option probabilities, and input/output/total usage. Cached,
 cache-write, and reasoning token counts are printed when reported. HTTP errors
 and unknown, duplicate, missing, or malformed answers and missing usage fail
 explicitly.
+
+On Windows, the first invocation can take longer while Ruby loads the SDK.
+Do not interpret process startup time as the latency of the Decisions request.

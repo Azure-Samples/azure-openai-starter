@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require "open3"
+require "json"
 require "uri"
 require "openai"
 
@@ -80,20 +81,34 @@ def choice_value(value)
 end
 
 def azure_cli_token
-  stdout, _stderr, status = Open3.capture3(
-    "az", "account", "get-access-token",
-    "--resource", "https://cognitiveservices.azure.com",
-    "--query", "accessToken", "--output", "tsv"
-  )
-  unless status.success?
-    raise "Azure CLI token acquisition failed (exit #{status.exitstatus}). Run az login and try again."
+  use_azd = ENV["AZURE_TOKEN_CREDENTIALS"]&.casecmp?("AzureDeveloperCliCredential")
+  command = if use_azd
+    ["azd", "auth", "token", "--scope", "https://cognitiveservices.azure.com/.default",
+     "--output", "json", "--no-prompt"]
+  else
+    ["az", "account", "get-access-token", "--resource", "https://cognitiveservices.azure.com",
+     "--query", "accessToken", "--output", "tsv"]
   end
-  token = stdout.strip
-  raise "Azure CLI returned an empty access token" if token.empty?
+  tenant = ENV["AZURE_TENANT_ID"]
+  command.concat([use_azd ? "--tenant-id" : "--tenant", tenant]) if tenant && !tenant.empty?
+  stdout, _stderr, status = Open3.capture3(*command)
+  unless status.success?
+    raise "Azure CLI token acquisition failed (exit #{status.exitstatus}). Sign in with the selected CLI and try again."
+  end
+  if use_azd
+    response = JSON.parse(stdout)
+    raise "Azure Developer CLI did not return a JSON access token" unless response.is_a?(Hash)
+    token = response.fetch("token")
+  else
+    token = stdout.strip
+  end
+  raise "Azure CLI returned an empty access token" unless token.is_a?(String) && !token.strip.empty?
 
   token
+rescue JSON::ParserError, KeyError
+  raise "Azure Developer CLI did not return a JSON access token", cause: nil
 rescue Errno::ENOENT
-  raise "Azure CLI is required without AZURE_OPENAI_API_KEY. Install it and run az login.", cause: nil
+  raise "The selected Azure CLI (az or azd) is required without AZURE_OPENAI_API_KEY. Install it and sign in.", cause: nil
 end
 
 image_url = image_input(ARGV)

@@ -173,7 +173,7 @@ class DecisionsTests(unittest.TestCase):
                 environment[name] = value
         result = subprocess.run([*sample.command, *(arguments or [])], cwd=sample.directory, env=environment,
                                 capture_output=True, text=True, encoding="utf-8",
-                                errors="replace", timeout=180 if live else 60)
+                                errors="replace", timeout=240 if sample.language == "Ruby" else 180 if live else 60)
         result.stdout += result.stderr
         result.stdout = result.stdout.replace("local-contract-test-key", "[redacted]")
         return result
@@ -340,6 +340,75 @@ require(process.argv[1]);
                 )
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn("resource tenant forwarded before token request", result.stdout + result.stderr)
+                self.assertEqual(self.requests, [])
+
+    def test_go_and_ruby_developer_clis_receive_the_resource_tenant(self) -> None:
+        tenant = "00000000-0000-0000-0000-000000000000"
+        for sample in self.samples:
+            if sample.language not in ("Go", "Ruby"):
+                continue
+            credentials = ["AzureDeveloperCliCredential"]
+            if sample.language == "Ruby":
+                credentials.append("AzureCliCredential")
+            for credential in credentials:
+                with self.subTest(language=sample.language, credential=credential):
+                    with tempfile.TemporaryDirectory(prefix="decisions-cli-test-") as temporary:
+                        directory = Path(temporary)
+                        recorded = directory / "arguments.txt"
+                        for name in ("az", "azd"):
+                            script = directory / name
+                            script.write_text(
+                                '#!/bin/sh\nprintf \'%s\\n\' "$@" > "$STARTER_TEST_CLI_ARGUMENTS"\n'
+                                'echo "Synthetic CLI failure" >&2\nexit 2\n', encoding="utf-8",
+                            )
+                            script.chmod(0o755)
+                            (directory / f"{name}.cmd").write_text(
+                                '@echo off\necho %* > "%STARTER_TEST_CLI_ARGUMENTS%"\n'
+                                'echo Synthetic CLI failure 1>&2\nexit /b 2\n', encoding="utf-8",
+                            )
+                        self.requests.clear()
+                        result = self.run_sample(sample, {
+                            "AZURE_OPENAI_ENDPOINT": "https://example.invalid/",
+                            "AZURE_OPENAI_API_KEY": None,
+                            "AZURE_TOKEN_CREDENTIALS": credential,
+                            "AZURE_TENANT_ID": tenant,
+                            "PATH": str(directory) + os.pathsep + os.environ.get("PATH", ""),
+                            "STARTER_TEST_CLI_ARGUMENTS": str(recorded),
+                        })
+                        self.assertNotEqual(result.returncode, 0, result.stdout)
+                        self.assertTrue(recorded.is_file(), result.stdout)
+                        arguments = recorded.read_text(encoding="utf-8")
+                        self.assertIn(tenant, arguments)
+                        self.assertIn("--tenant-id" if credential == "AzureDeveloperCliCredential"
+                                      else "--tenant", arguments)
+                        if credential == "AzureDeveloperCliCredential":
+                            self.assertIn("--scope", arguments)
+                            self.assertIn("https://cognitiveservices.azure.com/.default", arguments)
+                        else:
+                            self.assertIn("--resource", arguments)
+                        self.assertEqual(self.requests, [])
+
+    def test_ruby_developer_cli_rejects_invalid_token_responses(self) -> None:
+        sample = next((item for item in self.samples if item.language == "Ruby"), None)
+        if sample is None:
+            self.skipTest("Ruby was not selected")
+        for payload in ("[]", "null", "not-json", "{}"):
+            with self.subTest(response=payload), tempfile.TemporaryDirectory(prefix="decisions-cli-json-") as temporary:
+                directory = Path(temporary)
+                script = directory / "azd"
+                script.write_text(f"#!/bin/sh\nprintf '%s\\n' '{payload}'\n", encoding="utf-8")
+                script.chmod(0o755)
+                (directory / "azd.cmd").write_text(f"@echo off\necho {payload}\nexit /b 0\n", encoding="utf-8")
+                self.requests.clear()
+                result = self.run_sample(sample, {
+                    "AZURE_OPENAI_ENDPOINT": "https://example.invalid/",
+                    "AZURE_OPENAI_API_KEY": None,
+                    "AZURE_TOKEN_CREDENTIALS": "AzureDeveloperCliCredential",
+                    "AZURE_TENANT_ID": "00000000-0000-0000-0000-000000000000",
+                    "PATH": str(directory) + os.pathsep + os.environ.get("PATH", ""),
+                })
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn("Azure Developer CLI did not return a JSON access token", result.stdout)
                 self.assertEqual(self.requests, [])
 
     def test_real_photo_inputs_inline_and_https(self) -> None:

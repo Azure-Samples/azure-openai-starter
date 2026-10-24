@@ -38,6 +38,10 @@ For Python with an azd login, explicitly set
 The Python keyless examples then construct that official credential with the
 resource tenant and keep the bearer-token provider's automatic refresh.
 With no explicit credential selection, Python still uses `DefaultAzureCredential`.
+The Go keyless examples also forward `AZURE_TENANT_ID` to their default
+credential chain. Ruby normally uses `az`; set
+`AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential` to use an existing `azd`
+login instead. Ruby forwards `AZURE_TENANT_ID` to the selected CLI.
 
 Every Decisions sample uses the configuration in [.env.example](./.env.example).
 Export those values into your shell; loading a `.env` file is not automatic in

@@ -80,7 +80,9 @@ func newClientUsingEntraAuthentication(endpoint string) openai.Client {
 	// For production, use a specific credential (e.g. azidentity.NewManagedIdentityCredential)
 	// or set AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
 	// https://aka.ms/azsdk/go/identity/credential-chains#defaultazurecredential-overview
-	tokenCredential, err := azidentity.NewDefaultAzureCredential(nil)
+	tokenCredential, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{
+		TenantID: os.Getenv("AZURE_TENANT_ID"),
+	})
 
 	if err != nil {
 		log.Fatalf("Failed to create DefaultAzureCredential: %s", err)

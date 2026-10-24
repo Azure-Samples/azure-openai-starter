@@ -30,7 +30,7 @@ with the Decisions API.
 the Responses model deployment, and the deploying user's Cognitive Services User
 role assignment. The Decisions deployment is **opt-in**, not an additional
 resource provisioned by default. All samples support API keys or passwordless
-access; Ruby uses an Azure CLI token for its passwordless example.
+access; Ruby uses an Azure CLI or explicitly selected Azure Developer CLI token.
 
 ## Prerequisites
 
@@ -179,7 +179,10 @@ The examples build the SDK base URL as `https://{resource}.openai.azure.com/open
 
 Leave `AZURE_OPENAI_API_KEY` unset for the default passwordless flow using
 `DefaultAzureCredential` and a bearer token provider. Ruby uses an Azure CLI
-Entra token because there is no Azure Identity Ruby implementation in this starter.
+Entra token, or an Azure Developer CLI token when
+`AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential` is set, because there is no
+Azure Identity Ruby implementation in this starter. For multi-tenant developer
+logins, set `AZURE_TENANT_ID` to the resource's tenant.
 Set an API key only for the explicit fallback; never commit credentials.
 
 | Language | Decisions implementation | Run from its sample directory |

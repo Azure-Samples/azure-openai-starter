@@ -58,7 +58,9 @@ func run(ctx context.Context) error {
 		option.WithAPIKey(apiKey),
 	}
 	if apiKey == "" {
-		credential, err := azidentity.NewDefaultAzureCredential(nil)
+		credential, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{
+			TenantID: os.Getenv("AZURE_TENANT_ID"),
+		})
 		if err != nil {
 			return fmt.Errorf("create DefaultAzureCredential: %w", err)
 		}
