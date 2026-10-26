@@ -12,6 +12,10 @@ hook. Standalone language samples do not require PowerShell.
 Use your resource's root endpoint, for example
 `https://YOUR-RESOURCE-NAME.openai.azure.com/`, not a deployment-specific URL.
 The examples append `/openai/v1/`. No data-plane `api-version` is needed.
+The .NET Responses examples instead use native OpenAI configuration:
+`Clients:Responses:Options:Endpoint` is the **full v1 URL**. Their endpoint,
+credentials and model are supplied by configuration, not translated from the
+common starter variables. See the [.NET guide](./src/dotnet/README.md).
 
 | Environment variable | Applies to | Default / requirement |
 |---|---|---|
@@ -139,12 +143,15 @@ Responses uses the OpenAI 2.14.0 SDK. Decisions intentionally uses `HttpClient`
 against `/openai/v1/decisions`, with API-key or Microsoft Entra authentication,
 because this package has no typed Decisions client. See the [.NET guide](./src/dotnet/README.md).
 All .NET examples register their clients through the Generic Host and dependency
-injection. The SDK configuration interface binds Responses options and
+injection. OpenAI's `AddResponsesClient` binds Responses options and
 credentials; Decisions uses a named `HttpClient` and configurable Azure
-credential settings. The existing starter environment variables still work.
+credential settings. The Responses examples require native client configuration;
+the interim Decisions REST example still supports the starter environment variables.
 Use `Clients__Responses__...` or `Clients__Decisions__...` settings, or the
 optional [appsettings example](./src/dotnet/appsettings.example.json), to override
-client options and credential sources without editing code.
+client options and credential sources without editing code. No language sample
+uses an Azure OpenAI wrapper client/package; Azure identity/core components are
+used only for authentication.
 
 ## Ruby
 

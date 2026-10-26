@@ -89,6 +89,10 @@ and reasoning-token usage. Optional settings:
 | `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | `16384` | Integer from 16 to 128000, including reasoning tokens |
 
 These reasoning settings are **not** sent to the Decisions API.
+For .NET Responses, supply the corresponding native `Clients:Responses`
+configuration using the [appsettings example](./src/dotnet/appsettings.example.json)
+or double-underscore environment keys. The OpenAI SDK's `AddResponsesClient`
+handles binding; these examples no longer translate the common starter variables.
 
 ## Decisions: classify, route, and score
 

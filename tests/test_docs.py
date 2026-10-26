@@ -77,6 +77,30 @@ class DocumentationTests(unittest.TestCase):
                 self.assertTrue(client["Options"]["Endpoint"].endswith("/openai/v1/"))
                 self.assertIn("YOUR-RESOURCE", client["Options"]["Endpoint"])
 
+    def test_samples_use_native_openai_clients_without_azure_openai_wrappers(self) -> None:
+        forbidden = re.compile(
+            r"\bAzureOpenAI(?:Client|ClientBuilder)?\b|Azure\.AI\.OpenAI|@azure/openai|"
+            r"azure-ai-openai|com\.azure\.ai\.openai|sdk/ai/azopenai"
+        )
+        source = ROOT / "src"
+        patterns = (
+            "python/*.py", "python/requirements.txt",
+            "typescript/*.ts", "typescript/package*.json",
+            "go/*/main.go", "go/*/go.mod", "go/*/go.sum",
+            "java/pom.xml", "java/src/main/java/com/azure/openai/starter/*.java",
+            "dotnet/*.cs", "ruby/*.rb", "ruby/Gemfile*",
+        )
+        for pattern in patterns:
+            for path in source.glob(pattern):
+                with self.subTest(source=path.relative_to(ROOT)):
+                    self.assertIsNone(forbidden.search(path.read_text(encoding="utf-8-sig")))
+        for filename in ("responses_example.cs", "responses_example_entra.cs"):
+            text = (source / "dotnet" / filename).read_text()
+            self.assertIn('builder.AddResponsesClient("Clients:Responses")', text)
+            self.assertNotIn("AddAzureClient", text)
+            self.assertNotIn('builder.Configuration["AZURE_OPENAI_', text)
+            self.assertNotIn('settings["Credential:', text)
+
 
 if __name__ == "__main__":
     unittest.main()

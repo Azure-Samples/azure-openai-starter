@@ -22,57 +22,19 @@ Console.WriteLine("Azure OpenAI GPT-6.1 Sol - Entra Authentication");
 Console.WriteLine();
 
 var builder = Host.CreateApplicationBuilder(args);
-var settings = builder.Configuration.GetSection("Clients:Responses");
-if (settings["Options:Endpoint"] is null)
-{
-    var endpoint = builder.Configuration["AZURE_OPENAI_ENDPOINT"]
-        ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
-    settings["Options:Endpoint"] = $"{endpoint.TrimEnd('/')}/openai/v1/";
-}
-settings["Credential:TenantId"] ??= builder.Configuration["AZURE_TENANT_ID"];
-if (settings["Credential:CredentialSource"] is null)
-{
-    var selected = builder.Configuration["AZURE_TOKEN_CREDENTIALS"];
-    if (!string.IsNullOrWhiteSpace(selected)
-        && !string.Equals(selected, "dev", StringComparison.OrdinalIgnoreCase)
-        && !string.Equals(selected, "prod", StringComparison.OrdinalIgnoreCase))
-    {
-        settings["Credential:CredentialSource"] = selected;
-    }
-    else
-    {
-        settings["Credential:CredentialSource"] = "ChainedTokenCredential";
-        string[] sources = selected?.ToLowerInvariant() switch
-        {
-            "prod" => ["EnvironmentCredential", "WorkloadIdentityCredential", "ManagedIdentityCredential"],
-            "dev" => ["AzureCliCredential", "AzureDeveloperCliCredential"],
-            _ => ["EnvironmentCredential", "WorkloadIdentityCredential", "ManagedIdentityCredential",
-                  "AzureCliCredential", "AzureDeveloperCliCredential"]
-        };
-        for (var index = 0; index < sources.Length; index++)
-        {
-            settings[$"Credential:Sources:{index}:CredentialSource"] = sources[index];
-            settings[$"Credential:Sources:{index}:TenantId"] = settings["Credential:TenantId"];
-        }
-    }
-}
-if (string.Equals(settings["Credential:CredentialSource"], "ApiKeyCredential", StringComparison.OrdinalIgnoreCase)
-    || string.Equals(settings["Credential:CredentialSource"], "ApiKey", StringComparison.OrdinalIgnoreCase))
-{
-    settings["Credential:Key"] ??= builder.Configuration["AZURE_OPENAI_API_KEY"]
-        ?? throw new InvalidOperationException("AZURE_OPENAI_API_KEY environment variable is required");
-}
-settings["Credential:Scope"] ??= "https://cognitiveservices.azure.com/.default";
+var settings = builder.Configuration.GetRequiredSection("Clients:Responses");
+_ = settings["Options:Endpoint"]
+    ?? throw new InvalidOperationException("Clients:Responses:Options:Endpoint is required");
 
 // Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
-var model = settings["Model"] ?? builder.Configuration["AZURE_OPENAI_GPT_DEPLOYMENT_NAME"] ?? "gpt-6.1-sol";
-var effort = settings["ReasoningEffort"] ?? builder.Configuration["AZURE_OPENAI_REASONING_EFFORT"] ?? "medium";
+var model = settings["Model"] ?? throw new InvalidOperationException("Clients:Responses:Model is required");
+var effort = settings["ReasoningEffort"] ?? "medium";
 if (effort is not ("low" or "medium" or "high" or "xhigh" or "max"))
-    throw new InvalidOperationException("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max");
-var tokens = settings["MaxOutputTokens"] ?? builder.Configuration["AZURE_OPENAI_MAX_OUTPUT_TOKENS"] ?? "16384";
+    throw new InvalidOperationException("Clients:Responses:ReasoningEffort must be low, medium, high, xhigh, or max");
+var tokens = settings["MaxOutputTokens"] ?? "16384";
 if (!int.TryParse(tokens, out var maxOutputTokens)
     || maxOutputTokens < 16 || maxOutputTokens > 128000)
-    throw new InvalidOperationException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000");
+    throw new InvalidOperationException("Clients:Responses:MaxOutputTokens must be an integer from 16 to 128000");
 Console.WriteLine($"Deployment: {model}; reasoning effort: {effort}");
 
 CreateResponseOptions CreateOptions(IEnumerable<ResponseItem> input) => new(model, input)
@@ -86,7 +48,7 @@ CreateResponseOptions CreateOptions(IEnumerable<ResponseItem> input) => new(mode
 
 // Credential sources and their options are bound by the registered Azure resolver.
 builder.AddAzureCredentialResolver();
-builder.AddAzureClient<ResponsesClient, ResponsesClientSettings>("Clients:Responses");
+builder.AddResponsesClient("Clients:Responses");
 using var host = builder.Build();
 var responsesClient = host.Services.GetRequiredService<ResponsesClient>();
 

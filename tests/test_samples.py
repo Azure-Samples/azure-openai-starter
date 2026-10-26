@@ -276,6 +276,22 @@ class SampleTests(unittest.TestCase):
                 environment.pop(name, None)
             else:
                 environment[name] = value
+        if sample.language == ".NET" and not (sample.directory / "appsettings.json").exists():
+            # Feed the .NET host native configuration; samples do not translate legacy variables.
+            values = {
+                "Model": environment.get("AZURE_OPENAI_GPT_DEPLOYMENT_NAME", MODEL),
+                "ReasoningEffort": environment.get("AZURE_OPENAI_REASONING_EFFORT", "medium"),
+                "MaxOutputTokens": environment.get("AZURE_OPENAI_MAX_OUTPUT_TOKENS", "16384"),
+                "Credential__CredentialSource": "AzureCliCredential" if sample.auth == "entra" else "ApiKeyCredential",
+                "Credential__Scope": "https://cognitiveservices.azure.com/.default",
+            }
+            endpoint = environment.get("AZURE_OPENAI_ENDPOINT")
+            if endpoint:
+                values["Options__Endpoint"] = endpoint.rstrip("/") + "/openai/v1/"
+            if sample.auth == "key" and environment.get("AZURE_OPENAI_API_KEY"):
+                values["Credential__Key"] = environment["AZURE_OPENAI_API_KEY"]
+            for name, value in values.items():
+                environment.setdefault("Clients__Responses__" + name, value)
         result = subprocess.run(sample.command, cwd=sample.directory, env=environment, text=True,
                                 encoding="utf-8", errors="replace", stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, timeout=300 if live else 60)
@@ -485,7 +501,11 @@ class SampleTests(unittest.TestCase):
                     self.state.requests.clear()
                     result = self.run_sample(sample, {name: value})
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn(name, result.stdout)
+                    expected = name
+                    if sample.language == ".NET":
+                        expected = ("Clients:Responses:ReasoningEffort" if name == "AZURE_OPENAI_REASONING_EFFORT"
+                                    else "Clients:Responses:MaxOutputTokens")
+                    self.assertIn(expected, result.stdout)
                     self.assertEqual(self.state.requests, [])
 
     def test_required_environment(self) -> None:
@@ -498,7 +518,10 @@ class SampleTests(unittest.TestCase):
                     self.state.requests.clear()
                     result = self.run_sample(sample, {name: None})
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn(name, result.stdout)
+                    expected = name
+                    if sample.language == ".NET":
+                        expected = "Clients:Responses:Options:Endpoint" if name == "AZURE_OPENAI_ENDPOINT" else "Key"
+                    self.assertIn(expected, result.stdout)
                     self.assertEqual(self.state.requests, [])
 
     def test_unsuccessful_responses_are_not_reported_as_success(self) -> None:
