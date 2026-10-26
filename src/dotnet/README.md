@@ -1,74 +1,121 @@
-# .NET Code Prerequisites
+# .NET configuration and dependency injection samples
 
-This sample code requires .NET 10 or later.
+Requires the .NET 10 SDK (`dotnet --list-sdks`). These are file-based applications:
+their package directives restore dependencies; no project file is required.
 
-1. Check whether you've installed .NET 10 or not.
+All three applications use the .NET Generic Host configuration system and
+dependency injection. Configuration can come from an optional `appsettings.json`,
+environment variables, or command-line configuration in the Responses examples.
+Clients and credential settings are registered once and resolved from DI, rather
+than constructing an SDK client with a fixed credential in the sample.
 
-    ```bash
-    dotnet --list-sdks
-    ```
+## Quick start with the existing starter variables
 
-1. If you don't see 10.0.100 or higher, install [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0).
-
-## Run the examples
-
-These are .NET 10 file-based applications; no project file is required.
+From this directory:
 
 ```powershell
-$env:AZURE_OPENAI_ENDPOINT = "https://YOUR-RESOURCE.openai.azure.com"
-dotnet run responses_example.cs
+$env:AZURE_OPENAI_ENDPOINT = "https://YOUR-RESOURCE.openai.azure.com/"
+$env:AZURE_OPENAI_GPT_DEPLOYMENT_NAME = "YOUR-SOL-DEPLOYMENT"
+$env:AZURE_OPENAI_DEPLOYMENT = "YOUR-LUNA-DEPLOYMENT"
 dotnet run responses_example_entra.cs
 dotnet run decisions_example.cs
 ```
 
-The Responses samples use OpenAI .NET **2.14.0**, the Sol deployment configured
-by `AZURE_OPENAI_GPT_DEPLOYMENT_NAME`, and the existing reasoning settings.
-The API-key Responses sample requires `AZURE_OPENAI_API_KEY`; the Entra sample
-uses `DefaultAzureCredential`.
+The deployment settings refer to **Azure deployment names**, not arbitrary model
+selectors. The Responses deployment hosts GPT-6.1 Sol; Decisions requires GPT-6 Luna.
+API-key Responses remains available with `responses_example.cs` and
+`AZURE_OPENAI_API_KEY`. In Decisions, an explicitly set key is the fallback to
+the default Entra flow. No arguments preserves the three-question billing example.
 
-### Decisions uses interim REST
+The Entra configuration defaults to a chain of environment, workload identity,
+managed identity, Azure CLI, and Azure Developer CLI credentials. For a specific
+developer credential, set `AZURE_TOKEN_CREDENTIALS`, for example
+`AzureDeveloperCliCredential`. `dev` selects the CLI credentials; `prod` selects
+environment/workload/managed identity. `AZURE_TENANT_ID` is forwarded to the
+credential settings for multi-tenant developer logins.
 
-OpenAI .NET 2.14.0 does **not** expose a typed Decisions client.
-`decisions_example.cs` therefore uses `HttpClient` to post the documented JSON
-contract to `/openai/v1/decisions` and validates the response with `JsonDocument`.
-It does not depend on an unreleased SDK class.
-The sample includes a TODO to switch to a typed client when one is released.
-The file disables the optional native-AOT publish default so the anonymous
-request object can use reflection-based JSON serialization.
+## Configure the clients and credentials
 
-Set `AZURE_OPENAI_DEPLOYMENT` to the **Azure deployment name** pointing to
-GPT-6 Luna. It defaults to `gpt-6-luna` only when unset; an explicitly blank
-value is rejected. This is independent of the Sol Responses deployment.
-The endpoint must be the **resource root**, without `/openai/v1/`.
-The Decisions sample uses `AZURE_OPENAI_API_KEY` when nonempty, otherwise
-`DefaultAzureCredential` with the Azure OpenAI scope. For local development,
-run `az login` and ensure your identity has Azure OpenAI data-plane access.
+Copy [appsettings.example.json](./appsettings.example.json) to `appsettings.json`,
+replace the placeholder endpoints/deployment names, then run the same commands.
+The example selects an existing Azure Developer CLI login; run `azd auth login`
+first. Keep your real configuration and secrets out of source control.
+
+| Configuration section | Purpose |
+|---|---|
+| `Clients:Responses:Options` | `ResponsesClientOptions`, including endpoint, network timeout, organization/project IDs and supported pipeline settings |
+| `Clients:Responses:Credential` | Credential source and its options, such as `TenantId`, `ClientId` and chained `Sources` |
+| `Clients:Responses:Model` | Sol deployment name |
+| `Clients:Responses:ReasoningEffort` / `MaxOutputTokens` | Existing Responses request settings |
+| `Clients:Decisions:Options` | Interim HTTP transport endpoint and network timeout |
+| `Clients:Decisions:Credential` | API key or Azure token credential configuration |
+| `Clients:Decisions:Model` | Luna deployment name |
+
+The SDK's released configuration/DI interface registers the Responses singleton:
+
+```csharp
+builder.AddAzureCredentialResolver();
+builder.AddAzureClient<ResponsesClient, ResponsesClientSettings>("Clients:Responses");
+using var host = builder.Build();
+var client = host.Services.GetRequiredService<ResponsesClient>();
+```
+
+The Azure resolver constructs the configured credential. For example, use
+`AzureDeveloperCliCredential`, `AzureCliCredential`, `ManagedIdentityCredential`
+or `ChainedTokenCredential` with a `Sources` array. Set the Azure OpenAI
+`Credential:Scope` to `https://cognitiveservices.azure.com/.default`.
+
+Use standard double-underscore environment keys to override JSON:
 
 ```powershell
-$env:AZURE_OPENAI_DEPLOYMENT = "gpt-6-luna"
-dotnet run decisions_example.cs
+$env:Clients__Responses__Credential__CredentialSource = "ManagedIdentityCredential"
+$env:Clients__Responses__Credential__ClientId = "YOUR-USER-ASSIGNED-IDENTITY-CLIENT-ID"
+$env:Clients__Responses__Options__NetworkTimeout = "00:02:00"
+
+# Or select an API key supplied securely, not saved in JSON:
+$env:Clients__Responses__Credential__CredentialSource = "ApiKeyCredential"
+$env:Clients__Responses__Credential__Key = $env:AZURE_OPENAI_API_KEY
+```
+
+The same credential keys work under `Clients__Decisions__Credential__...`.
+Configuration sections take precedence over the starter's `AZURE_OPENAI_*`
+variables; the latter are used only to populate missing settings. A configured
+`Options:Endpoint` is the **full v1 base URL**, unlike the legacy resource-root
+`AZURE_OPENAI_ENDPOINT`. Changing credentials does not require editing the sample.
+Application code can also register custom credential resolvers and configure
+the DI client's settings/options.
+
+These samples pin OpenAI **2.14.0**, Azure.Core **1.62.0**, and Microsoft.Extensions
+Hosting/HTTP **10.0.10**. Azure.Core 1.62.0 supplies the Azure identity
+configuration resolver and credential types; a separate older Azure.Identity
+reference is not needed. The configuration APIs are shipped but marked
+experimental (`SCME0002`); the samples explicitly suppress that diagnostic.
+File-based native-AOT publishing is disabled for reflection-based configuration.
+
+References:
+- [System.ClientModel configuration and DI](https://github.com/Azure/azure-sdk-for-net/blob/System.ClientModel_1.15.0/sdk/core/System.ClientModel/src/docs/ConfigurationAndDependencyInjection.md)
+- [Azure credential configuration](https://github.com/Azure/azure-sdk-for-net/blob/Azure.Core_1.62.0/sdk/core/Azure.Core/src/Identity/ConfigurationExtensions.cs)
+
+## Decisions remains an interim REST operation
+
+OpenAI 2.14.0 has no typed Decisions client. The sample keeps its documented
+`POST /openai/v1/decisions` JSON contract and `System.Text.Json` response checks.
+Its named `HttpClient` comes from `IHttpClientFactory`; endpoint, timeout and
+credentials come from configuration/DI. A TODO records the future switch to a
+released typed client. It does not call a nonexistent SDK method.
+
+```powershell
 dotnet run decisions_example.cs -- --image ..\..\images\decisions-photo.png
 dotnet run decisions_example.cs -- --image "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/astronaut.png"
 ```
 
-No arguments preserves the duplicate-charge ticket and its three questions.
-The only optional arguments are `--image PATH_OR_HTTPS_URL`; they switch to
-visible-damage, object-category, and severity questions. Use the bundled NASA
-public-domain photo above or your own
-readable, nonempty `.png`, `.jpg`, `.jpeg`, `.webp`, or `.gif` photo, at most
-**32 MiB (33,554,432 bytes)**. Local bytes are encoded as an inline base64 data
-URL with the matching MIME type. Validation runs before authentication or
-client creation.
+The optional `--image PATH_OR_HTTPS_URL` switches to visible damage, object
+category and severity questions. Local PNG, JPEG, WebP and GIF files must be
+readable, nonempty, and at most 32 MiB. A public HTTPS URL passes through unchanged,
+without an app-side download. Validation precedes credential acquisition.
 
-Public HTTPS image URLs pass through unchanged, without an app-side download.
-Signed query strings are allowed, but a host is required and credentials,
-fragments, and HTTP image URLs (even loopback) are rejected. Only one image is
-sent, below the API's 128-image limit. The Azure endpoint requires HTTPS;
-HTTP loopback is allowed only with an explicit API key for synthetic tests.
-One reusable `HttpClient` sends all three questions in one buffered JSON request.
-
-The example prints each named predicate, choice, score, or refusal, all
-choice/score option probabilities, and input/output/total usage. Cached,
-cache-write, and reasoning tokens are printed when reported. HTTP errors
-include the response body; unknown, duplicate, missing, or malformed answers
-and missing usage fail instead of being reported as successful decisions.
+The Decisions endpoint must use HTTPS; loopback HTTP is permitted only with an
+explicit API key for synthetic tests. The sample sends one uncompressed,
+non-streaming request and prints named answers, all choice/score probabilities,
+and usage. HTTP errors, refusals and malformed responses retain their explicit
+handling; configuration/DI does not change the request contract.

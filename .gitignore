@@ -26,6 +26,9 @@ src/ruby/.bundle/
 src/ruby/vendor/
 src/dotnet/bin/
 src/dotnet/obj/
+src/dotnet/appsettings.json
+src/dotnet/appsettings.*.json
+!src/dotnet/appsettings.example.json
 
 # Java
 src/java/target/

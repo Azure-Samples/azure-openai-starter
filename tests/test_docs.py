@@ -64,6 +64,19 @@ class DocumentationTests(unittest.TestCase):
                 self.assertNotIn("AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME", text)
                 self.assertIn("--image", text)
 
+    def test_dotnet_configuration_example_contains_no_secret_and_matches_sections(self) -> None:
+        settings = json.loads((ROOT / "src" / "dotnet" / "appsettings.example.json").read_text())
+        self.assertEqual(set(settings["Clients"]), {"Responses", "Decisions"})
+        for name, deployment in (("Responses", "gpt-6.1-sol"), ("Decisions", "gpt-6-luna")):
+            with self.subTest(client=name):
+                client = settings["Clients"][name]
+                self.assertEqual(client["Model"], deployment)
+                self.assertEqual(client["Credential"]["CredentialSource"], "AzureDeveloperCliCredential")
+                self.assertNotIn("Key", client["Credential"])
+                self.assertEqual(client["Credential"]["Scope"], "https://cognitiveservices.azure.com/.default")
+                self.assertTrue(client["Options"]["Endpoint"].endswith("/openai/v1/"))
+                self.assertIn("YOUR-RESOURCE", client["Options"]["Endpoint"])
+
 
 if __name__ == "__main__":
     unittest.main()

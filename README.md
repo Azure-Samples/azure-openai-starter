@@ -178,7 +178,10 @@ documents the shape; export its values into your shell before running a sample.
 The examples build the SDK base URL as `https://{resource}.openai.azure.com/openai/v1/`.
 
 Leave `AZURE_OPENAI_API_KEY` unset for the default passwordless flow using
-`DefaultAzureCredential` and a bearer token provider. Ruby uses an Azure CLI
+Azure Identity credentials. The .NET examples use configuration-backed credential
+selection and dependency injection; see the [.NET guide](./src/dotnet/README.md).
+Other SDK examples use `DefaultAzureCredential` and bearer token providers as
+appropriate for the language. Ruby uses an Azure CLI
 Entra token, or an Azure Developer CLI token when
 `AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential` is set, because there is no
 Azure Identity Ruby implementation in this starter. For multi-tenant developer

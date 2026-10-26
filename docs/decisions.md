@@ -99,6 +99,9 @@ From `src/ruby`, run `bundle install`, then
 # [C# / REST](#tab/csharp)
 
 From `src/dotnet`, run `dotnet run decisions_example.cs` with the .NET 10 SDK.
+The [.NET configuration/DI guide](../src/dotnet/README.md) explains how to configure
+the named HTTP transport, credential source, endpoint and timeout, while retaining
+the common starter environment-variable setup.
 The HTTP call is an **interim** implementation; it has a TODO to move to the
 typed client once a released SDK supports Decisions. Do not use an unreleased class.
 

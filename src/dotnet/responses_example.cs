@@ -1,33 +1,53 @@
 #!/usr/bin/dotnet run
 
 #:package OpenAI@2.14.0
+#:package Azure.Core@1.62.0
+#:package Microsoft.Extensions.Hosting@10.0.10
+#:property PublishAot=false
 
 // Azure OpenAI GPT-6.1 Sol - Responses API Example
 // This demonstrates the Responses API with the GPT-6.1 Sol reasoning model.
 
-using System.ClientModel;
-
-using OpenAI;
+using Azure.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OpenAI.Responses;
 
 #pragma warning disable OPENAI001
+#pragma warning disable SCME0002
 
 // Run Responses API examples.
 Console.WriteLine("Azure OpenAI GPT-6.1 Sol - Responses API");
 Console.WriteLine();
 
-// Get required environment variables - throws InvalidOperationException if missing
-var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")
-               ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
-var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")
-             ?? throw new InvalidOperationException("AZURE_OPENAI_API_KEY environment variable is required");
+var builder = Host.CreateApplicationBuilder(args);
+var settings = builder.Configuration.GetSection("Clients:Responses");
+if (settings["Options:Endpoint"] is null)
+{
+    var endpoint = builder.Configuration["AZURE_OPENAI_ENDPOINT"]
+        ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
+    settings["Options:Endpoint"] = $"{endpoint.TrimEnd('/')}/openai/v1/";
+}
+settings["Credential:TenantId"] ??= builder.Configuration["AZURE_TENANT_ID"];
+if (settings["Credential:CredentialSource"] is null)
+{
+    settings["Credential:CredentialSource"] = "ApiKeyCredential";
+}
+if (string.Equals(settings["Credential:CredentialSource"], "ApiKeyCredential", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(settings["Credential:CredentialSource"], "ApiKey", StringComparison.OrdinalIgnoreCase))
+{
+    settings["Credential:Key"] ??= builder.Configuration["AZURE_OPENAI_API_KEY"]
+        ?? throw new InvalidOperationException("AZURE_OPENAI_API_KEY environment variable is required");
+}
+settings["Credential:Scope"] ??= "https://cognitiveservices.azure.com/.default";
 
 // Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
-var model = Environment.GetEnvironmentVariable("AZURE_OPENAI_GPT_DEPLOYMENT_NAME") ?? "gpt-6.1-sol";
-var effort = Environment.GetEnvironmentVariable("AZURE_OPENAI_REASONING_EFFORT") ?? "medium";
+var model = settings["Model"] ?? builder.Configuration["AZURE_OPENAI_GPT_DEPLOYMENT_NAME"] ?? "gpt-6.1-sol";
+var effort = settings["ReasoningEffort"] ?? builder.Configuration["AZURE_OPENAI_REASONING_EFFORT"] ?? "medium";
 if (effort is not ("low" or "medium" or "high" or "xhigh" or "max"))
     throw new InvalidOperationException("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max");
-var tokens = Environment.GetEnvironmentVariable("AZURE_OPENAI_MAX_OUTPUT_TOKENS") ?? "16384";
+var tokens = settings["MaxOutputTokens"] ?? builder.Configuration["AZURE_OPENAI_MAX_OUTPUT_TOKENS"] ?? "16384";
 if (!int.TryParse(tokens, out var maxOutputTokens)
     || maxOutputTokens < 16 || maxOutputTokens > 128000)
     throw new InvalidOperationException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000");
@@ -42,15 +62,11 @@ CreateResponseOptions CreateOptions(IEnumerable<ResponseItem> input) => new(mode
     }
 };
 
-// Use ApiKeyCredential for API key authentication
-var credential = new ApiKeyCredential(apiKey);
-var clientOptions = new ResponsesClientOptions
-{
-    Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
-};
-
-// Initialize OpenAI Response client with Azure endpoint
-var responsesClient = new ResponsesClient(credential, clientOptions);
+// Bind endpoint, pipeline options, and credentials from configuration; reuse the DI singleton.
+builder.AddAzureCredentialResolver();
+builder.AddAzureClient<ResponsesClient, ResponsesClientSettings>("Clients:Responses");
+using var host = builder.Build();
+var responsesClient = host.Services.GetRequiredService<ResponsesClient>();
 
 // Example 1: Simple text input
 Console.WriteLine("Example 1: Simple text input");

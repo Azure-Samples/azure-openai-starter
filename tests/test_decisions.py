@@ -152,7 +152,7 @@ class DecisionsTests(unittest.TestCase):
                    *, arguments: list[str] | None = None, live: bool = False) -> subprocess.CompletedProcess:
         environment = os.environ.copy()
         for name in list(environment):
-            if name.startswith("OPENAI_") or (not live and name.startswith("AZURE_OPENAI_")):
+            if name.startswith("OPENAI_") or (not live and name.startswith(("AZURE_OPENAI_", "Clients__"))):
                 environment.pop(name)
         environment.update({
             "PYTHON_DOTENV_DISABLED": "1",
@@ -259,6 +259,26 @@ class DecisionsTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0, result.stdout)
                     self.assertIn("AZURE_OPENAI_DEPLOYMENT", result.stdout)
                     self.assertEqual(self.requests, [])
+
+    def test_dotnet_rest_client_is_configured_through_dependency_injection(self) -> None:
+        for sample in self.samples:
+            if sample.language != ".NET REST":
+                continue
+            with self.subTest(language=sample.language):
+                self.requests.clear()
+                result = self.run_sample(sample, {
+                    "AZURE_OPENAI_ENDPOINT": None,
+                    "AZURE_OPENAI_API_KEY": None,
+                    "AZURE_OPENAI_DEPLOYMENT": "ignored-legacy-deployment",
+                    "Clients__Decisions__Options__Endpoint": self.endpoint + "/openai/v1/",
+                    "Clients__Decisions__Options__NetworkTimeout": "00:00:10",
+                    "Clients__Decisions__Credential__CredentialSource": "ApiKeyCredential",
+                    "Clients__Decisions__Credential__Key": "local-contract-test-key",
+                    "Clients__Decisions__Model": "configured-luna",
+                })
+                self.assertEqual(result.returncode, 0, result.stdout)
+                self.assert_request("configured-luna")
+                self.assertIn("Usage:", result.stdout)
 
     def test_python_and_typescript_reject_unsafe_endpoints_before_authentication(self) -> None:
         for sample in self.samples:

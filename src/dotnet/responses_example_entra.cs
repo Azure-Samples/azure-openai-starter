@@ -1,34 +1,75 @@
 #!/usr/bin/dotnet run
 
 #:package OpenAI@2.14.0
-#:package Azure.Identity@1.*
+#:package Azure.Core@1.62.0
+#:package Microsoft.Extensions.Hosting@10.0.10
+#:property PublishAot=false
 
 // Azure OpenAI GPT-6.1 Sol - Responses API with Entra Authentication
 // This demonstrates using keyless authentication with Entra instead of API keys.
 
-using System.ClientModel.Primitives;
-
 using Azure.Identity;
-
-using OpenAI;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OpenAI.Responses;
 
 #pragma warning disable OPENAI001
+#pragma warning disable SCME0002
 
 // Run Responses API examples with Entra authentication.
 Console.WriteLine("Azure OpenAI GPT-6.1 Sol - Entra Authentication");
 Console.WriteLine();
 
-// Get required environment variables - throws InvalidOperationException if missing
-var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT") 
-               ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
+var builder = Host.CreateApplicationBuilder(args);
+var settings = builder.Configuration.GetSection("Clients:Responses");
+if (settings["Options:Endpoint"] is null)
+{
+    var endpoint = builder.Configuration["AZURE_OPENAI_ENDPOINT"]
+        ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
+    settings["Options:Endpoint"] = $"{endpoint.TrimEnd('/')}/openai/v1/";
+}
+settings["Credential:TenantId"] ??= builder.Configuration["AZURE_TENANT_ID"];
+if (settings["Credential:CredentialSource"] is null)
+{
+    var selected = builder.Configuration["AZURE_TOKEN_CREDENTIALS"];
+    if (!string.IsNullOrWhiteSpace(selected)
+        && !string.Equals(selected, "dev", StringComparison.OrdinalIgnoreCase)
+        && !string.Equals(selected, "prod", StringComparison.OrdinalIgnoreCase))
+    {
+        settings["Credential:CredentialSource"] = selected;
+    }
+    else
+    {
+        settings["Credential:CredentialSource"] = "ChainedTokenCredential";
+        string[] sources = selected?.ToLowerInvariant() switch
+        {
+            "prod" => ["EnvironmentCredential", "WorkloadIdentityCredential", "ManagedIdentityCredential"],
+            "dev" => ["AzureCliCredential", "AzureDeveloperCliCredential"],
+            _ => ["EnvironmentCredential", "WorkloadIdentityCredential", "ManagedIdentityCredential",
+                  "AzureCliCredential", "AzureDeveloperCliCredential"]
+        };
+        for (var index = 0; index < sources.Length; index++)
+        {
+            settings[$"Credential:Sources:{index}:CredentialSource"] = sources[index];
+            settings[$"Credential:Sources:{index}:TenantId"] = settings["Credential:TenantId"];
+        }
+    }
+}
+if (string.Equals(settings["Credential:CredentialSource"], "ApiKeyCredential", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(settings["Credential:CredentialSource"], "ApiKey", StringComparison.OrdinalIgnoreCase))
+{
+    settings["Credential:Key"] ??= builder.Configuration["AZURE_OPENAI_API_KEY"]
+        ?? throw new InvalidOperationException("AZURE_OPENAI_API_KEY environment variable is required");
+}
+settings["Credential:Scope"] ??= "https://cognitiveservices.azure.com/.default";
 
 // Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
-var model = Environment.GetEnvironmentVariable("AZURE_OPENAI_GPT_DEPLOYMENT_NAME") ?? "gpt-6.1-sol";
-var effort = Environment.GetEnvironmentVariable("AZURE_OPENAI_REASONING_EFFORT") ?? "medium";
+var model = settings["Model"] ?? builder.Configuration["AZURE_OPENAI_GPT_DEPLOYMENT_NAME"] ?? "gpt-6.1-sol";
+var effort = settings["ReasoningEffort"] ?? builder.Configuration["AZURE_OPENAI_REASONING_EFFORT"] ?? "medium";
 if (effort is not ("low" or "medium" or "high" or "xhigh" or "max"))
     throw new InvalidOperationException("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max");
-var tokens = Environment.GetEnvironmentVariable("AZURE_OPENAI_MAX_OUTPUT_TOKENS") ?? "16384";
+var tokens = settings["MaxOutputTokens"] ?? builder.Configuration["AZURE_OPENAI_MAX_OUTPUT_TOKENS"] ?? "16384";
 if (!int.TryParse(tokens, out var maxOutputTokens)
     || maxOutputTokens < 16 || maxOutputTokens > 128000)
     throw new InvalidOperationException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000");
@@ -43,20 +84,11 @@ CreateResponseOptions CreateOptions(IEnumerable<ResponseItem> input) => new(mode
     }
 };
 
-// Use DefaultAzureCredential for Entra authentication
-// This automatically uses your Azure CLI login, Managed Identity, or other credential sources
-// For production, use a specific credential (e.g. ManagedIdentityCredential) or set
-// AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
-// https://aka.ms/azsdk/net/identity/credential-chains#defaultazurecredential-overview
-var credential = new DefaultAzureCredential();
-var policy = new BearerTokenPolicy(credential, "https://cognitiveservices.azure.com/.default");
-var clientOptions = new ResponsesClientOptions
-{
-    Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
-};
-
-// Initialize OpenAI Response client with Azure endpoint and Entra authentication
-var responsesClient = new ResponsesClient(policy, clientOptions);
+// Credential sources and their options are bound by the registered Azure resolver.
+builder.AddAzureCredentialResolver();
+builder.AddAzureClient<ResponsesClient, ResponsesClientSettings>("Clients:Responses");
+using var host = builder.Build();
+var responsesClient = host.Services.GetRequiredService<ResponsesClient>();
 
 // Example 1: Simple text input with Responses API
 Console.WriteLine("Example 1: Simple text input");

@@ -1,46 +1,104 @@
 #!/usr/bin/dotnet run
 
-#:package Azure.Identity@1.*
+#:package Azure.Core@1.62.0
+#:package Microsoft.Extensions.Hosting@10.0.10
+#:package Microsoft.Extensions.Http@10.0.10
 #:property PublishAot=false
 
 using System.Net.Http.Headers;
+using System.ClientModel.Primitives;
 using System.Text.Json;
 
 using Azure.Core;
 using Azure.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+
+#pragma warning disable SCME0002
 
 var imageUrl = ImageInput(args);
 var withImage = imageUrl is not null;
-var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT");
-if (string.IsNullOrWhiteSpace(endpoint))
-    throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
-var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY");
-var useKey = !string.IsNullOrEmpty(apiKey);
+var builder = Host.CreateApplicationBuilder();
+var settings = builder.Configuration.GetSection("Clients:Decisions");
+if (settings["Options:Endpoint"] is null)
+{
+    var resourceEndpoint = builder.Configuration["AZURE_OPENAI_ENDPOINT"];
+    if (string.IsNullOrWhiteSpace(resourceEndpoint))
+        throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
+    settings["Options:Endpoint"] = $"{resourceEndpoint.TrimEnd('/')}/openai/v1/";
+}
+settings["Credential:TenantId"] ??= builder.Configuration["AZURE_TENANT_ID"];
+if (settings["Credential:CredentialSource"] is null)
+{
+    var apiKey = builder.Configuration["AZURE_OPENAI_API_KEY"];
+    if (!string.IsNullOrEmpty(apiKey))
+    {
+        settings["Credential:CredentialSource"] = "ApiKeyCredential";
+        settings["Credential:Key"] = apiKey;
+    }
+    else
+    {
+        var selected = builder.Configuration["AZURE_TOKEN_CREDENTIALS"];
+        if (!string.IsNullOrWhiteSpace(selected)
+            && !string.Equals(selected, "dev", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(selected, "prod", StringComparison.OrdinalIgnoreCase))
+        {
+            settings["Credential:CredentialSource"] = selected;
+        }
+        else
+        {
+            settings["Credential:CredentialSource"] = "ChainedTokenCredential";
+            string[] sources = selected?.ToLowerInvariant() switch
+            {
+                "prod" => ["EnvironmentCredential", "WorkloadIdentityCredential", "ManagedIdentityCredential"],
+                "dev" => ["AzureCliCredential", "AzureDeveloperCliCredential"],
+                _ => ["EnvironmentCredential", "WorkloadIdentityCredential", "ManagedIdentityCredential",
+                      "AzureCliCredential", "AzureDeveloperCliCredential"]
+            };
+            for (var index = 0; index < sources.Length; index++)
+            {
+                settings[$"Credential:Sources:{index}:CredentialSource"] = sources[index];
+                settings[$"Credential:Sources:{index}:TenantId"] = settings["Credential:TenantId"];
+            }
+        }
+    }
+}
+settings["Credential:Scope"] ??= "https://cognitiveservices.azure.com/.default";
+var endpoint = settings["Options:Endpoint"];
+var useKey = string.Equals(settings["Credential:CredentialSource"], "ApiKeyCredential", StringComparison.OrdinalIgnoreCase)
+    || string.Equals(settings["Credential:CredentialSource"], "ApiKey", StringComparison.OrdinalIgnoreCase);
+if (useKey)
+    settings["Credential:Key"] ??= builder.Configuration["AZURE_OPENAI_API_KEY"];
+if (useKey && string.IsNullOrEmpty(settings["Credential:Key"]))
+    throw new InvalidOperationException("Clients:Decisions:Credential:Key is required for ApiKeyCredential");
 if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri)
     || string.IsNullOrEmpty(uri.Host) || !string.IsNullOrEmpty(uri.UserInfo)
     || !string.IsNullOrEmpty(uri.Query) || !string.IsNullOrEmpty(uri.Fragment)
-    || uri.AbsolutePath.Trim('/').Length != 0)
-    throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT must be the Azure resource root URL");
+    || uri.AbsolutePath.Trim('/') != "openai/v1")
+    throw new InvalidOperationException("Configure an Azure resource root URL or Clients:Decisions:Options:Endpoint ending in /openai/v1/");
 if (uri.Scheme != Uri.UriSchemeHttps && !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback && useKey))
     throw new InvalidOperationException(
         "AZURE_OPENAI_ENDPOINT must use HTTPS (HTTP loopback is allowed with an API key)");
 // Azure deployment name; it must point to GPT-6 Luna.
-var model = Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT") ?? "gpt-6-luna";
+var model = settings["Model"] ?? builder.Configuration["AZURE_OPENAI_DEPLOYMENT"] ?? "gpt-6-luna";
 if (string.IsNullOrWhiteSpace(model))
     throw new InvalidOperationException("AZURE_OPENAI_DEPLOYMENT must not be empty");
 var predicateName = withImage ? "visible_damage" : "refund_requested";
 var choiceName = withImage ? "category" : "department";
 
-var bearerToken = apiKey;
-if (!useKey)
+builder.AddAzureCredentialResolver();
+builder.Services.AddSingleton(services => builder.Configuration.GetAzureCredentialSettings(
+    "Clients:Decisions:Credential", services.GetServices<CredentialResolver>().ToArray())
+    ?? throw new InvalidOperationException("Clients:Decisions:Credential is required"));
+builder.Services.AddHttpClient("Decisions", client =>
 {
-    var credential = new DefaultAzureCredential();
-    var token = await credential.GetTokenAsync(new TokenRequestContext(
-        ["https://cognitiveservices.azure.com/.default"]));
-    bearerToken = token.Token;
-}
-// Create one client and reuse its connections for subsequent requests.
-using var httpClient = new HttpClient(new HttpClientHandler { AllowAutoRedirect = false });
+    client.BaseAddress = new Uri($"{uri.AbsoluteUri.TrimEnd('/')}/");
+    client.Timeout = TimeSpan.Parse(settings["Options:NetworkTimeout"] ?? "00:01:40");
+}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+using var host = builder.Build();
+var credentials = host.Services.GetRequiredService<CredentialSettings>();
+using var httpClient = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("Decisions");
 
 // Interim REST sample: OpenAI .NET 2.14.0 has no typed Decisions client.
 // TODO: Switch to the typed client when a stable SDK exposes Decisions.
@@ -110,11 +168,18 @@ var payload = new
         }
     }
 };
-using var request = new HttpRequestMessage(HttpMethod.Post, $"{endpoint.TrimEnd('/')}/openai/v1/decisions");
+using var request = new HttpRequestMessage(HttpMethod.Post, "decisions");
 if (useKey)
-    request.Headers.Add("api-key", apiKey);
+    request.Headers.Add("api-key", credentials.Key);
 else
-    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", bearerToken);
+{
+    if (credentials.TokenProvider is not TokenCredential credential)
+        throw new InvalidOperationException("Configured credential source did not resolve to an Azure token credential");
+    var scope = settings["Credential:Scope"]
+        ?? throw new InvalidOperationException("Clients:Decisions:Credential:Scope is required");
+    var token = await credential.GetTokenAsync(new TokenRequestContext([scope]), CancellationToken.None);
+    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
+}
 request.Content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
 using var response = await httpClient.SendAsync(request);
 // [END decisions_request]

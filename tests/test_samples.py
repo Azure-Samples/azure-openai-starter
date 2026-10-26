@@ -82,6 +82,8 @@ def handler_for(state: StubState) -> type[BaseHTTPRequestHandler]:
                 "path": self.path,
                 "authorization": self.headers.get("Authorization"),
                 "api-key": self.headers.get("api-key"),
+                "organization": self.headers.get("OpenAI-Organization"),
+                "project": self.headers.get("OpenAI-Project"),
                 "body": request,
             })
             status = "incomplete" if state.scenario == "incomplete" else "completed"
@@ -260,7 +262,7 @@ class SampleTests(unittest.TestCase):
                    *, live: bool = False) -> subprocess.CompletedProcess[str]:
         environment = os.environ.copy()
         for name in list(environment):
-            if name.startswith("OPENAI_") or (not live and name.startswith("AZURE_OPENAI_")):
+            if name.startswith("OPENAI_") or (not live and name.startswith(("AZURE_OPENAI_", "Clients__"))):
                 environment.pop(name)
         environment.update({"PYTHON_DOTENV_DISABLED": "1", "DOTENV_CONFIG_PATH": os.devnull,
                             "PYTHONIOENCODING": "utf-8", "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential"})
@@ -355,6 +357,93 @@ class SampleTests(unittest.TestCase):
                         "AZURE_OPENAI_MAX_OUTPUT_TOKENS": str(tokens),
                     }))
                     self.assert_requests(model="custom-sol-deployment", tokens=tokens)
+
+    def test_dotnet_configuration_binds_options_and_overrides_credentials(self) -> None:
+        for sample in self.samples:
+            if sample.language != ".NET":
+                continue
+            with self.subTest(auth_default=sample.auth):
+                self.state.requests.clear()
+                result = self.run_sample(sample, {
+                    "AZURE_OPENAI_ENDPOINT": None,
+                    "AZURE_OPENAI_API_KEY": None,
+                    "AZURE_OPENAI_GPT_DEPLOYMENT_NAME": "ignored-legacy-deployment",
+                    "Clients__Responses__Options__Endpoint": self.endpoint + "/openai/v1/",
+                    "Clients__Responses__Options__OrganizationId": "test-organization",
+                    "Clients__Responses__Options__ProjectId": "test-project",
+                    "Clients__Responses__Credential__CredentialSource": "ApiKeyCredential",
+                    "Clients__Responses__Credential__Key": "local-contract-test-key",
+                    "Clients__Responses__Model": "configured-sol",
+                    "Clients__Responses__ReasoningEffort": "high",
+                    "Clients__Responses__MaxOutputTokens": "4096",
+                })
+                self.assert_success(result)
+                self.assert_requests("high", "configured-sol", 4096)
+                for request in self.state.requests:
+                    self.assertEqual(request["organization"], "test-organization")
+                    self.assertEqual(request["project"], "test-project")
+
+    def test_dotnet_configuration_selects_the_developer_credential(self) -> None:
+        for sample in self.samples:
+            if sample.language != ".NET":
+                continue
+            with self.subTest(auth_default=sample.auth), tempfile.TemporaryDirectory(prefix="dotnet-credential-") as temporary:
+                directory = Path(temporary)
+                recorded = directory / "arguments.txt"
+                (directory / "az.cmd").write_text(
+                    '@echo off\necho %* > "%STARTER_TEST_CLI_ARGUMENTS%"\n'
+                    'echo Synthetic CLI failure 1>&2\nexit /b 9\n', encoding="utf-8",
+                )
+                cli = directory / "az"
+                cli.write_text(
+                    '#!/bin/sh\nprintf \'%s\\n\' "$@" > "$STARTER_TEST_CLI_ARGUMENTS"\n'
+                    'echo "Synthetic CLI failure" >&2\nexit 9\n', encoding="utf-8",
+                )
+                cli.chmod(0o755)
+                self.state.requests.clear()
+                result = self.run_sample(sample, {
+                    "AZURE_OPENAI_ENDPOINT": None,
+                    "AZURE_OPENAI_API_KEY": None,
+                    # The SDK requires TLS for bearer auth. The fake CLI stops before transport.
+                    "Clients__Responses__Options__Endpoint": self.endpoint.replace("http:", "https:") + "/openai/v1/",
+                    "Clients__Responses__Credential__CredentialSource": "AzureCliCredential",
+                    "Clients__Responses__Credential__TenantId": "00000000-0000-0000-0000-000000000000",
+                    "PATH": str(directory) + os.pathsep + os.environ.get("PATH", ""),
+                    "STARTER_TEST_CLI_ARGUMENTS": str(recorded),
+                })
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertTrue(recorded.is_file(), result.stdout)
+                arguments = recorded.read_text()
+                self.assertIn("get-access-token", arguments)
+                self.assertIn("https://cognitiveservices.azure.com", arguments)
+                self.assertIn("00000000-0000-0000-0000-000000000000", arguments)
+                self.assertEqual(self.state.requests, [])
+
+    def test_dotnet_clients_load_appsettings_without_starter_environment_variables(self) -> None:
+        for sample in self.samples:
+            if sample.language != ".NET":
+                continue
+            with self.subTest(auth_default=sample.auth), tempfile.TemporaryDirectory(prefix="dotnet-config-") as temporary:
+                directory = Path(temporary)
+                (directory / "appsettings.json").write_text(json.dumps({
+                    "Clients": {
+                        "Responses": {
+                            "Model": "config-file-sol",
+                            "ReasoningEffort": "high",
+                            "MaxOutputTokens": 4096,
+                            "Options": {"Endpoint": self.endpoint + "/openai/v1/"},
+                            "Credential": {"CredentialSource": "ApiKeyCredential",
+                                           "Key": "local-contract-test-key"},
+                        }
+                    }
+                }), encoding="utf-8")
+                self.state.requests.clear()
+                configured = Sample(sample.language, sample.auth, sample.command, directory)
+                result = self.run_sample(configured, {
+                    "AZURE_OPENAI_ENDPOINT": None, "AZURE_OPENAI_API_KEY": None,
+                })
+                self.assert_success(result)
+                self.assert_requests("high", "config-file-sol", 4096)
 
     def test_copied_examples_run_without_sibling_files(self) -> None:
         destination = Path(self.temporary.name)
