@@ -14,8 +14,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OpenAI.Responses;
 
-#pragma warning disable OPENAI001
-#pragma warning disable SCME0002
+#pragma warning disable OPENAI001 // The OpenAI Responses API is experimental.
+#pragma warning disable SCME0002 // System.ClientModel configuration/DI APIs (AddResponsesClient, the Azure credential resolver) are experimental; the opt-in is intentional.
 
 // Run Responses API examples with Entra authentication.
 Console.WriteLine("Azure OpenAI GPT-6.1 Sol - Entra Authentication");
@@ -23,8 +23,15 @@ Console.WriteLine();
 
 var builder = Host.CreateApplicationBuilder(args);
 var settings = builder.Configuration.GetRequiredSection("Clients:Responses");
-_ = settings["Options:Endpoint"]
+var endpoint = settings["Options:Endpoint"]
     ?? throw new InvalidOperationException("Clients:Responses:Options:Endpoint is required");
+// Require an absolute HTTPS endpoint (HTTP only for a local test server): API keys are sent as
+// configured, and the SDK ignores a value that is not an absolute URL and targets api.openai.com.
+if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+    || (endpointUri.Scheme != Uri.UriSchemeHttps
+        && !(endpointUri.Scheme == Uri.UriSchemeHttp && endpointUri.IsLoopback)))
+    throw new InvalidOperationException(
+        "Clients:Responses:Options:Endpoint must be an absolute HTTPS URL (HTTP is allowed only for a loopback test server)");
 
 // Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
 var model = settings["Model"] ?? throw new InvalidOperationException("Clients:Responses:Model is required");

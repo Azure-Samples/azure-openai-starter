@@ -435,6 +435,23 @@ class SampleTests(unittest.TestCase):
                 self.assertIn("00000000-0000-0000-0000-000000000000", arguments)
                 self.assertEqual(self.state.requests, [])
 
+    def test_dotnet_rejects_insecure_or_unparseable_endpoints_before_any_request(self) -> None:
+        for sample in self.samples:
+            if sample.language != ".NET":
+                continue
+            for endpoint in ("http://example.invalid/openai/v1/", "example.invalid/openai/v1/"):
+                with self.subTest(auth_default=sample.auth, endpoint=endpoint):
+                    self.state.requests.clear()
+                    result = self.run_sample(sample, {
+                        "AZURE_OPENAI_ENDPOINT": None,
+                        "Clients__Responses__Options__Endpoint": endpoint,
+                        "Clients__Responses__Credential__CredentialSource": "ApiKeyCredential",
+                        "Clients__Responses__Credential__Key": "local-contract-test-key",
+                    })
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn("must be an absolute HTTPS URL", result.stdout)
+                    self.assertEqual(self.state.requests, [])
+
     def test_dotnet_clients_load_appsettings_without_starter_environment_variables(self) -> None:
         for sample in self.samples:
             if sample.language != ".NET":

@@ -77,6 +77,21 @@ class DocumentationTests(unittest.TestCase):
                 self.assertTrue(client["Options"]["Endpoint"].endswith("/openai/v1/"))
                 self.assertIn("YOUR-RESOURCE", client["Options"]["Endpoint"])
 
+    def test_dotnet_readme_registration_snippet_matches_both_responses_samples(self) -> None:
+        readme = (ROOT / "src" / "dotnet" / "README.md").read_text(encoding="utf-8")
+        match = re.search(r"```csharp\n(.*?)```", readme, re.DOTALL)
+        self.assertIsNotNone(match)
+        snippet = [line.strip() for line in match.group(1).splitlines() if line.strip()]
+        self.assertGreater(len(snippet), 1)
+        for filename in ("responses_example.cs", "responses_example_entra.cs"):
+            with self.subTest(source=filename):
+                text = (ROOT / "src" / "dotnet" / filename).read_text(encoding="utf-8")
+                source = [line.strip() for line in text.splitlines()]
+                position = 0
+                for line in snippet:
+                    self.assertIn(line, source[position:], f"{filename} no longer matches README line: {line}")
+                    position = source.index(line, position) + 1
+
     def test_samples_use_native_openai_clients_without_azure_openai_wrappers(self) -> None:
         forbidden = re.compile(
             r"\bAzureOpenAI(?:Client|ClientBuilder)?\b|Azure\.AI\.OpenAI|@azure/openai|"

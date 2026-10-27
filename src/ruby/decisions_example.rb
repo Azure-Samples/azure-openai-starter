@@ -117,6 +117,7 @@ endpoint = ENV["AZURE_OPENAI_ENDPOINT"]
 if endpoint.nil? || endpoint.strip.empty?
   raise "AZURE_OPENAI_ENDPOINT environment variable is required"
 end
+# Entra ID (an Azure CLI token) is the default. Set AZURE_OPENAI_API_KEY only for the key fallback.
 api_key = ENV["AZURE_OPENAI_API_KEY"]
 use_key = !api_key.nil? && !api_key.empty?
 uri = URI.parse(endpoint)

@@ -12,13 +12,18 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.AddAzureCredentialResolver();
 builder.AddResponsesClient("Clients:Responses");
 using var host = builder.Build();
-var client = host.Services.GetRequiredService<ResponsesClient>();
+var responsesClient = host.Services.GetRequiredService<ResponsesClient>();
 ```
 
 `AddResponsesClient` binds `ResponsesClientSettings` from configuration and
 registers the singleton. There is no `AddAzureClient` call, manual client-options
 binding, credential factory, or automatic translation of `AZURE_OPENAI_*`
 variables in the Responses samples.
+
+The examples also require `Options:Endpoint` to be an absolute HTTPS URL (HTTP is
+accepted only for a loopback test server). A mistyped `http://` URL then cannot send
+an API key in clear text, and a value that is not an absolute URL is rejected instead
+of being left for the SDK to ignore.
 
 The Azure credential resolver is **authentication only**. It enables configured
 Entra credential sources; it does not create an Azure OpenAI wrapper client.

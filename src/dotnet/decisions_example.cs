@@ -15,7 +15,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-#pragma warning disable SCME0002
+#pragma warning disable SCME0002 // Azure.Core configuration and credential APIs are experimental; the opt-in is intentional.
 
 var imageUrl = ImageInput(args);
 var withImage = imageUrl is not null;
@@ -29,6 +29,7 @@ if (settings["Options:Endpoint"] is null)
     settings["Options:Endpoint"] = $"{resourceEndpoint.TrimEnd('/')}/openai/v1/";
 }
 settings["Credential:TenantId"] ??= builder.Configuration["AZURE_TENANT_ID"];
+// Entra ID is the default. Set AZURE_OPENAI_API_KEY only for the key fallback.
 if (settings["Credential:CredentialSource"] is null)
 {
     var apiKey = builder.Configuration["AZURE_OPENAI_API_KEY"];

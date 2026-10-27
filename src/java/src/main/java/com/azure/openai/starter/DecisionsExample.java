@@ -61,6 +61,7 @@ public class DecisionsExample {
 
         var builder = OpenAIOkHttpClient.builder()
                 .baseUrl(endpoint.replaceAll("/+$", "") + "/openai/v1/");
+        // Entra ID is the default. Set AZURE_OPENAI_API_KEY only for the key fallback.
         if (useKey) {
             builder.apiKey(apiKey);
         } else {

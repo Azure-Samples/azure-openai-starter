@@ -57,6 +57,7 @@ func run(ctx context.Context) error {
 		option.WithBaseURL(strings.TrimRight(endpoint, "/") + "/openai/v1/"),
 		option.WithAPIKey(apiKey),
 	}
+	// Entra ID is the default. Set AZURE_OPENAI_API_KEY only for the key fallback.
 	if apiKey == "" {
 		credential, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{
 			TenantID: os.Getenv("AZURE_TENANT_ID"),

@@ -13,7 +13,8 @@ Use your resource's root endpoint, for example
 `https://YOUR-RESOURCE-NAME.openai.azure.com/`, not a deployment-specific URL.
 The examples append `/openai/v1/`. No data-plane `api-version` is needed.
 The .NET Responses examples instead use native OpenAI configuration:
-`Clients:Responses:Options:Endpoint` is the **full v1 URL**. Their endpoint,
+`Clients:Responses:Options:Endpoint` is the **full v1 URL** and must use HTTPS
+(plain HTTP only for a loopback test server). Their endpoint,
 credentials and model are supplied by configuration, not translated from the
 common starter variables. See the [.NET guide](./src/dotnet/README.md).
 
