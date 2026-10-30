@@ -5,6 +5,7 @@
   "main": "responses_example.js",
   "scripts": {
     "start": "tsx responses_example.ts",
+    "decisions": "tsx decisions_example.ts",
     "build": "tsc",
     "dev": "tsx watch responses_example.ts"
   },
@@ -14,7 +15,7 @@
   "dependencies": {
     "@azure/identity": "^4.0.0",
     "dotenv": "^17.2.3",
-    "openai": "^7.4.0"
+    "openai": "7.43.0"
   },
   "devDependencies": {
     "@types/node": "^22.7.4",

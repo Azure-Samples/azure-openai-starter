@@ -2,6 +2,9 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 Write-Host "Validating Azure OpenAI GPT-6.1 Sol template..." -ForegroundColor Cyan
+if ($env:AZURE_OPENAI_DEPLOY_DECISIONS -eq "true" -and $env:AZURE_LOCATION -eq "eastus2") {
+    throw "Decisions is not enabled in East US 2. Choose a supported region: https://aka.ms/foundrydecisionsapi"
+}
 Push-Location $PSScriptRoot
 try {
     foreach ($command in @("azd", "az")) {
@@ -29,7 +32,19 @@ try {
         "src\dotnet\responses_example_entra.cs",
         "src\java\pom.xml",
         "src\java\src\main\java\com\azure\openai\starter\ResponsesExample.java",
-        "src\java\src\main\java\com\azure\openai\starter\ResponsesExampleEntra.java"
+        "src\java\src\main\java\com\azure\openai\starter\ResponsesExampleEntra.java",
+        "src\python\decisions_example.py",
+        "src\typescript\decisions_example.ts",
+        "src\go\decisions_example\main.go",
+        "src\java\src\main\java\com\azure\openai\starter\DecisionsExample.java",
+        "src\dotnet\decisions_example.cs",
+        "src\ruby\decisions_example.rb",
+        "src\ruby\Gemfile",
+        "scripts\check-model-support.py",
+        "docs\decisions.md",
+        ".env.example",
+        "images\decisions-photo.png",
+        "images\decisions-photo.md"
     )
     foreach ($file in $requiredFiles) {
         if (-not (Test-Path $file -PathType Leaf)) {

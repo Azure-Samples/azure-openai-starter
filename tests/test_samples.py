@@ -12,6 +12,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -21,6 +22,39 @@ ROOT = Path(__file__).resolve().parents[1]
 EFFORTS = ("low", "medium", "high", "xhigh", "max")
 MODEL = "gpt-6.1-sol"
 LOCAL_TOKEN = "local-contract-test-token"
+
+def selected_languages(*, include_ruby: bool = False) -> set[str]:
+    supported = {"Python", "TypeScript", "Go", ".NET", "Java"}
+    if include_ruby:
+        supported.add("Ruby")
+    requested = os.getenv("STARTER_TEST_LANGUAGES")
+    if requested is None:
+        return supported
+    selected = {name.strip() for name in requested.split(",")}
+    unknown = selected - {"Python", "TypeScript", "Go", ".NET", "Java", "Ruby"}
+    if unknown:
+        raise RuntimeError(f"Unknown STARTER_TEST_LANGUAGES: {', '.join(sorted(unknown))}")
+    return selected & supported
+
+
+class LanguageSelectionTests(unittest.TestCase):
+    def test_default_selects_the_complete_matrix(self) -> None:
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(selected_languages(), {"Python", "TypeScript", "Go", ".NET", "Java"})
+            self.assertIn("Ruby", selected_languages(include_ruby=True))
+
+    def test_explicit_selection_and_ruby_only(self) -> None:
+        with patch.dict(os.environ, {"STARTER_TEST_LANGUAGES": "Python, .NET"}):
+            self.assertEqual(selected_languages(), {"Python", ".NET"})
+        with patch.dict(os.environ, {"STARTER_TEST_LANGUAGES": "Ruby"}):
+            self.assertEqual(selected_languages(), set())
+            self.assertEqual(selected_languages(include_ruby=True), {"Ruby"})
+
+    def test_typo_or_empty_selection_is_an_error(self) -> None:
+        for value in ("", "python", "Java,Unknown"):
+            with self.subTest(value=value), patch.dict(os.environ, {"STARTER_TEST_LANGUAGES": value}):
+                with self.assertRaisesRegex(RuntimeError, "STARTER_TEST_LANGUAGES"):
+                    selected_languages()
 
 
 @dataclass(frozen=True)
@@ -48,6 +82,8 @@ def handler_for(state: StubState) -> type[BaseHTTPRequestHandler]:
                 "path": self.path,
                 "authorization": self.headers.get("Authorization"),
                 "api-key": self.headers.get("api-key"),
+                "organization": self.headers.get("OpenAI-Organization"),
+                "project": self.headers.get("OpenAI-Project"),
                 "body": request,
             })
             status = "incomplete" if state.scenario == "incomplete" else "completed"
@@ -120,32 +156,44 @@ def build(command: list[str], directory: Path) -> None:
 
 
 def build_samples(destination: Path) -> list[Sample]:
+    languages = selected_languages()
+    if not languages:
+        raise unittest.SkipTest("No Responses languages selected")
     python = ROOT / "src" / "python"
-    build([sys.executable, "-c",
-           "from importlib.metadata import version; import azure.identity, dotenv; "
-           "assert int(version('openai').split('.')[0]) >= 3, 'Install src/python/requirements.txt'"], python)
+    if "Python" in languages:
+        build([sys.executable, "-c",
+               "from importlib.metadata import version; import azure.identity, dotenv; "
+               "assert int(version('openai').split('.')[0]) >= 3, 'Install src/python/requirements.txt'"], python)
     typescript = ROOT / "src" / "typescript"
-    build([tool("npm"), "run", "build"], typescript)
+    if "TypeScript" in languages:
+        build([tool("npm"), "run", "build"], typescript)
     java = ROOT / "src" / "java"
     classpath_file = destination / "java-classpath.txt"
-    build([tool("mvn"), "--batch-mode", "compile", "dependency:build-classpath",
-           f"-Dmdep.outputFile={classpath_file}"], java)
-    classpath = str(java / "target" / "classes") + os.pathsep + classpath_file.read_text().strip()
+    classpath = ""
+    if "Java" in languages:
+        build([tool("mvn"), "--batch-mode", "compile", "dependency:build-classpath",
+               f"-Dmdep.outputFile={classpath_file}"], java)
+        classpath = str(java / "target" / "classes") + os.pathsep + classpath_file.read_text().strip()
     samples = []
     for auth, suffix, java_suffix in (("key", "", ""), ("entra", "_entra", "Entra")):
         stem = f"responses_example{suffix}"
-        samples.append(Sample("Python", auth, [sys.executable, str(python / f"{stem}.py")], python))
-        samples.append(Sample("TypeScript", auth, [tool("node"), str(typescript / "dist" / f"{stem}.js")], typescript))
+        if "Python" in languages:
+            samples.append(Sample("Python", auth, [sys.executable, str(python / f"{stem}.py")], python))
+        if "TypeScript" in languages:
+            samples.append(Sample("TypeScript", auth, [tool("node"), str(typescript / "dist" / f"{stem}.js")], typescript))
         go = ROOT / "src" / "go" / stem
         executable = destination / (f"go-{auth}.exe" if os.name == "nt" else f"go-{auth}")
-        build([tool("go"), "build", "-o", str(executable), "."], go)
-        samples.append(Sample("Go", auth, [str(executable)], go))
+        if "Go" in languages:
+            build([tool("go"), "build", "-o", str(executable), "."], go)
+            samples.append(Sample("Go", auth, [str(executable)], go))
         dotnet = ROOT / "src" / "dotnet"
         output = destination / f"dotnet-{auth}"
-        build([tool("dotnet"), "build", f"{stem}.cs", "--nologo", "--output", str(output)], dotnet)
-        samples.append(Sample(".NET", auth, [tool("dotnet"), str(output / f"{stem}.dll")], dotnet))
-        samples.append(Sample("Java", auth, [tool("java"), "-cp", classpath,
-                                             f"com.azure.openai.starter.ResponsesExample{java_suffix}"], java))
+        if ".NET" in languages:
+            build([tool("dotnet"), "build", f"{stem}.cs", "--nologo", "--output", str(output)], dotnet)
+            samples.append(Sample(".NET", auth, [tool("dotnet"), str(output / f"{stem}.dll")], dotnet))
+        if "Java" in languages:
+            samples.append(Sample("Java", auth, [tool("java"), "-cp", classpath,
+                                                 f"com.azure.openai.starter.ResponsesExample{java_suffix}"], java))
     return samples
 
 
@@ -214,7 +262,7 @@ class SampleTests(unittest.TestCase):
                    *, live: bool = False) -> subprocess.CompletedProcess[str]:
         environment = os.environ.copy()
         for name in list(environment):
-            if name.startswith("OPENAI_") or (not live and name.startswith("AZURE_OPENAI_")):
+            if name.startswith("OPENAI_") or (not live and name.startswith(("AZURE_OPENAI_", "Clients__"))):
                 environment.pop(name)
         environment.update({"PYTHON_DOTENV_DISABLED": "1", "DOTENV_CONFIG_PATH": os.devnull,
                             "PYTHONIOENCODING": "utf-8", "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential"})
@@ -228,6 +276,22 @@ class SampleTests(unittest.TestCase):
                 environment.pop(name, None)
             else:
                 environment[name] = value
+        if sample.language == ".NET" and not (sample.directory / "appsettings.json").exists():
+            # Feed the .NET host native configuration; samples do not translate legacy variables.
+            values = {
+                "Model": environment.get("AZURE_OPENAI_GPT_DEPLOYMENT_NAME", MODEL),
+                "ReasoningEffort": environment.get("AZURE_OPENAI_REASONING_EFFORT", "medium"),
+                "MaxOutputTokens": environment.get("AZURE_OPENAI_MAX_OUTPUT_TOKENS", "16384"),
+                "Credential__CredentialSource": "AzureCliCredential" if sample.auth == "entra" else "ApiKeyCredential",
+                "Credential__Scope": "https://cognitiveservices.azure.com/.default",
+            }
+            endpoint = environment.get("AZURE_OPENAI_ENDPOINT")
+            if endpoint:
+                values["Options__Endpoint"] = endpoint.rstrip("/") + "/openai/v1/"
+            if sample.auth == "key" and environment.get("AZURE_OPENAI_API_KEY"):
+                values["Credential__Key"] = environment["AZURE_OPENAI_API_KEY"]
+            for name, value in values.items():
+                environment.setdefault("Clients__Responses__" + name, value)
         result = subprocess.run(sample.command, cwd=sample.directory, env=environment, text=True,
                                 encoding="utf-8", errors="replace", stdout=subprocess.PIPE,
                                 stderr=subprocess.STDOUT, timeout=300 if live else 60)
@@ -310,9 +374,114 @@ class SampleTests(unittest.TestCase):
                     }))
                     self.assert_requests(model="custom-sol-deployment", tokens=tokens)
 
+    def test_dotnet_configuration_binds_options_and_overrides_credentials(self) -> None:
+        for sample in self.samples:
+            if sample.language != ".NET":
+                continue
+            with self.subTest(auth_default=sample.auth):
+                self.state.requests.clear()
+                result = self.run_sample(sample, {
+                    "AZURE_OPENAI_ENDPOINT": None,
+                    "AZURE_OPENAI_API_KEY": None,
+                    "AZURE_OPENAI_GPT_DEPLOYMENT_NAME": "ignored-legacy-deployment",
+                    "Clients__Responses__Options__Endpoint": self.endpoint + "/openai/v1/",
+                    "Clients__Responses__Options__OrganizationId": "test-organization",
+                    "Clients__Responses__Options__ProjectId": "test-project",
+                    "Clients__Responses__Credential__CredentialSource": "ApiKeyCredential",
+                    "Clients__Responses__Credential__Key": "local-contract-test-key",
+                    "Clients__Responses__Model": "configured-sol",
+                    "Clients__Responses__ReasoningEffort": "high",
+                    "Clients__Responses__MaxOutputTokens": "4096",
+                })
+                self.assert_success(result)
+                self.assert_requests("high", "configured-sol", 4096)
+                for request in self.state.requests:
+                    self.assertEqual(request["organization"], "test-organization")
+                    self.assertEqual(request["project"], "test-project")
+
+    def test_dotnet_configuration_selects_the_developer_credential(self) -> None:
+        for sample in self.samples:
+            if sample.language != ".NET":
+                continue
+            with self.subTest(auth_default=sample.auth), tempfile.TemporaryDirectory(prefix="dotnet-credential-") as temporary:
+                directory = Path(temporary)
+                recorded = directory / "arguments.txt"
+                (directory / "az.cmd").write_text(
+                    '@echo off\necho %* > "%STARTER_TEST_CLI_ARGUMENTS%"\n'
+                    'echo Synthetic CLI failure 1>&2\nexit /b 9\n', encoding="utf-8",
+                )
+                cli = directory / "az"
+                cli.write_text(
+                    '#!/bin/sh\nprintf \'%s\\n\' "$@" > "$STARTER_TEST_CLI_ARGUMENTS"\n'
+                    'echo "Synthetic CLI failure" >&2\nexit 9\n', encoding="utf-8",
+                )
+                cli.chmod(0o755)
+                self.state.requests.clear()
+                result = self.run_sample(sample, {
+                    "AZURE_OPENAI_ENDPOINT": None,
+                    "AZURE_OPENAI_API_KEY": None,
+                    # The SDK requires TLS for bearer auth. The fake CLI stops before transport.
+                    "Clients__Responses__Options__Endpoint": self.endpoint.replace("http:", "https:") + "/openai/v1/",
+                    "Clients__Responses__Credential__CredentialSource": "AzureCliCredential",
+                    "Clients__Responses__Credential__TenantId": "00000000-0000-0000-0000-000000000000",
+                    "PATH": str(directory) + os.pathsep + os.environ.get("PATH", ""),
+                    "STARTER_TEST_CLI_ARGUMENTS": str(recorded),
+                })
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertTrue(recorded.is_file(), result.stdout)
+                arguments = recorded.read_text()
+                self.assertIn("get-access-token", arguments)
+                self.assertIn("https://cognitiveservices.azure.com", arguments)
+                self.assertIn("00000000-0000-0000-0000-000000000000", arguments)
+                self.assertEqual(self.state.requests, [])
+
+    def test_dotnet_rejects_insecure_or_unparseable_endpoints_before_any_request(self) -> None:
+        for sample in self.samples:
+            if sample.language != ".NET":
+                continue
+            for endpoint in ("http://example.invalid/openai/v1/", "example.invalid/openai/v1/"):
+                with self.subTest(auth_default=sample.auth, endpoint=endpoint):
+                    self.state.requests.clear()
+                    result = self.run_sample(sample, {
+                        "AZURE_OPENAI_ENDPOINT": None,
+                        "Clients__Responses__Options__Endpoint": endpoint,
+                        "Clients__Responses__Credential__CredentialSource": "ApiKeyCredential",
+                        "Clients__Responses__Credential__Key": "local-contract-test-key",
+                    })
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn("must be an absolute HTTPS URL", result.stdout)
+                    self.assertEqual(self.state.requests, [])
+
+    def test_dotnet_clients_load_appsettings_without_starter_environment_variables(self) -> None:
+        for sample in self.samples:
+            if sample.language != ".NET":
+                continue
+            with self.subTest(auth_default=sample.auth), tempfile.TemporaryDirectory(prefix="dotnet-config-") as temporary:
+                directory = Path(temporary)
+                (directory / "appsettings.json").write_text(json.dumps({
+                    "Clients": {
+                        "Responses": {
+                            "Model": "config-file-sol",
+                            "ReasoningEffort": "high",
+                            "MaxOutputTokens": 4096,
+                            "Options": {"Endpoint": self.endpoint + "/openai/v1/"},
+                            "Credential": {"CredentialSource": "ApiKeyCredential",
+                                           "Key": "local-contract-test-key"},
+                        }
+                    }
+                }), encoding="utf-8")
+                self.state.requests.clear()
+                configured = Sample(sample.language, sample.auth, sample.command, directory)
+                result = self.run_sample(configured, {
+                    "AZURE_OPENAI_ENDPOINT": None, "AZURE_OPENAI_API_KEY": None,
+                })
+                self.assert_success(result)
+                self.assert_requests("high", "config-file-sol", 4096)
+
     def test_copied_examples_run_without_sibling_files(self) -> None:
         destination = Path(self.temporary.name)
-        java_dependencies = (destination / "java-classpath.txt").read_text().strip()
+        classpath_file = destination / "java-classpath.txt"
+        java_dependencies = classpath_file.read_text().strip() if classpath_file.exists() else ""
         settings = {
             "PYTHONPATH": None,
             "NODE_PATH": str(ROOT / "src" / "typescript" / "node_modules"),
@@ -349,7 +518,11 @@ class SampleTests(unittest.TestCase):
                     self.state.requests.clear()
                     result = self.run_sample(sample, {name: value})
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn(name, result.stdout)
+                    expected = name
+                    if sample.language == ".NET":
+                        expected = ("Clients:Responses:ReasoningEffort" if name == "AZURE_OPENAI_REASONING_EFFORT"
+                                    else "Clients:Responses:MaxOutputTokens")
+                    self.assertIn(expected, result.stdout)
                     self.assertEqual(self.state.requests, [])
 
     def test_required_environment(self) -> None:
@@ -362,7 +535,10 @@ class SampleTests(unittest.TestCase):
                     self.state.requests.clear()
                     result = self.run_sample(sample, {name: None})
                     self.assertNotEqual(result.returncode, 0)
-                    self.assertIn(name, result.stdout)
+                    expected = name
+                    if sample.language == ".NET":
+                        expected = "Clients:Responses:Options:Endpoint" if name == "AZURE_OPENAI_ENDPOINT" else "Key"
+                    self.assertIn(expected, result.stdout)
                     self.assertEqual(self.state.requests, [])
 
     def test_unsuccessful_responses_are_not_reported_as_success(self) -> None:

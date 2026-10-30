@@ -3,6 +3,12 @@ set -euo pipefail
 
 cd -- "$(dirname -- "${BASH_SOURCE[0]}")"
 echo "Validating Azure OpenAI GPT-6.1 Sol template..."
+decisions_enabled="${AZURE_OPENAI_DEPLOY_DECISIONS:-false}"
+location="${AZURE_LOCATION:-eastus}"
+if [[ "$decisions_enabled" == [Tt][Rr][Uu][Ee] && "$location" == [Ee][Aa][Ss][Tt][Uu][Ss]2 ]]; then
+    echo "Decisions is not enabled in East US 2. Choose a supported region: https://aka.ms/foundrydecisionsapi" >&2
+    exit 1
+fi
 for tool in azd az; do
     if ! command -v "$tool" > /dev/null; then
         echo "Required command not found: $tool" >&2
@@ -27,6 +33,18 @@ required_files=(
     "src/java/pom.xml"
     "src/java/src/main/java/com/azure/openai/starter/ResponsesExample.java"
     "src/java/src/main/java/com/azure/openai/starter/ResponsesExampleEntra.java"
+    "src/python/decisions_example.py"
+    "src/typescript/decisions_example.ts"
+    "src/go/decisions_example/main.go"
+    "src/java/src/main/java/com/azure/openai/starter/DecisionsExample.java"
+    "src/dotnet/decisions_example.cs"
+    "src/ruby/decisions_example.rb"
+    "src/ruby/Gemfile"
+    "scripts/check-model-support.py"
+    "docs/decisions.md"
+    ".env.example"
+    "images/decisions-photo.png"
+    "images/decisions-photo.md"
 )
 
 for file in "${required_files[@]}"; do

@@ -1,0 +1,19 @@
+GEM
+  remote: https://rubygems.org/
+  specs:
+    connection_pool (3.0.2)
+    logger (1.7.0)
+    openai (0.111.0)
+      connection_pool (>= 2.2.3)
+      logger
+
+PLATFORMS
+  ruby
+  x64-mingw-ucrt
+  x86_64-linux
+
+DEPENDENCIES
+  openai (= 0.111.0)
+
+BUNDLED WITH
+   2.6.9

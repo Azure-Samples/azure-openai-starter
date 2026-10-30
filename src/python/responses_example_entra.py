@@ -7,7 +7,7 @@ This demonstrates using Azure Identity (EntraID) instead of API keys.
 import os
 import sys
 
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
+from azure.identity import AzureDeveloperCliCredential, DefaultAzureCredential, get_bearer_token_provider
 from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.responses import Response
@@ -37,8 +37,13 @@ def main():
     # For production, use a specific credential (e.g. ManagedIdentityCredential) or set
     # AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
     # https://aka.ms/azsdk/python/identity/credential-chains#defaultazurecredential-overview
+    credential = (
+        AzureDeveloperCliCredential(tenant_id=os.getenv("AZURE_TENANT_ID"))
+        if os.getenv("AZURE_TOKEN_CREDENTIALS", "").lower() == "azuredeveloperclicredential"
+        else DefaultAzureCredential()
+    )
     token_provider = get_bearer_token_provider(
-    DefaultAzureCredential(), "https://cognitiveservices.azure.com/.default"
+        credential, "https://cognitiveservices.azure.com/.default"
     )
     
     # Initialize OpenAI client with Azure endpoint and EntraID authentication (v1 API path)

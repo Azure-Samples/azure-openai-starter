@@ -1,36 +1,47 @@
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.13.0
+#:package OpenAI@2.14.0
+#:package Azure.Core@1.62.0
+#:package Microsoft.Extensions.Hosting@10.0.10
+#:property PublishAot=false
 
 // Azure OpenAI GPT-6.1 Sol - Responses API Example
 // This demonstrates the Responses API with the GPT-6.1 Sol reasoning model.
 
-using System.ClientModel;
-
-using OpenAI;
+using Azure.Identity;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OpenAI.Responses;
 
-#pragma warning disable OPENAI001
+#pragma warning disable OPENAI001 // The OpenAI Responses API is experimental.
+#pragma warning disable SCME0002 // System.ClientModel configuration/DI APIs (AddResponsesClient, the Azure credential resolver) are experimental; the opt-in is intentional.
 
 // Run Responses API examples.
 Console.WriteLine("Azure OpenAI GPT-6.1 Sol - Responses API");
 Console.WriteLine();
 
-// Get required environment variables - throws InvalidOperationException if missing
-var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT")
-               ?? throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT environment variable is required");
-var apiKey = Environment.GetEnvironmentVariable("AZURE_OPENAI_API_KEY")
-             ?? throw new InvalidOperationException("AZURE_OPENAI_API_KEY environment variable is required");
+var builder = Host.CreateApplicationBuilder(args);
+var settings = builder.Configuration.GetRequiredSection("Clients:Responses");
+var endpoint = settings["Options:Endpoint"]
+    ?? throw new InvalidOperationException("Clients:Responses:Options:Endpoint is required");
+// Require an absolute HTTPS endpoint (HTTP only for a local test server): API keys are sent as
+// configured, and the SDK ignores a value that is not an absolute URL and targets api.openai.com.
+if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var endpointUri)
+    || (endpointUri.Scheme != Uri.UriSchemeHttps
+        && !(endpointUri.Scheme == Uri.UriSchemeHttp && endpointUri.IsLoopback)))
+    throw new InvalidOperationException(
+        "Clients:Responses:Options:Endpoint must be an absolute HTTPS URL (HTTP is allowed only for a loopback test server)");
 
 // Optional settings. GPT-6.1 Sol supports low, medium, high, xhigh and max reasoning effort.
-var model = Environment.GetEnvironmentVariable("AZURE_OPENAI_GPT_DEPLOYMENT_NAME") ?? "gpt-6.1-sol";
-var effort = Environment.GetEnvironmentVariable("AZURE_OPENAI_REASONING_EFFORT") ?? "medium";
+var model = settings["Model"] ?? throw new InvalidOperationException("Clients:Responses:Model is required");
+var effort = settings["ReasoningEffort"] ?? "medium";
 if (effort is not ("low" or "medium" or "high" or "xhigh" or "max"))
-    throw new InvalidOperationException("AZURE_OPENAI_REASONING_EFFORT must be low, medium, high, xhigh, or max");
-var tokens = Environment.GetEnvironmentVariable("AZURE_OPENAI_MAX_OUTPUT_TOKENS") ?? "16384";
+    throw new InvalidOperationException("Clients:Responses:ReasoningEffort must be low, medium, high, xhigh, or max");
+var tokens = settings["MaxOutputTokens"] ?? "16384";
 if (!int.TryParse(tokens, out var maxOutputTokens)
     || maxOutputTokens < 16 || maxOutputTokens > 128000)
-    throw new InvalidOperationException("AZURE_OPENAI_MAX_OUTPUT_TOKENS must be an integer from 16 to 128000");
+    throw new InvalidOperationException("Clients:Responses:MaxOutputTokens must be an integer from 16 to 128000");
 Console.WriteLine($"Deployment: {model}; reasoning effort: {effort}");
 
 CreateResponseOptions CreateOptions(IEnumerable<ResponseItem> input) => new(model, input)
@@ -42,15 +53,11 @@ CreateResponseOptions CreateOptions(IEnumerable<ResponseItem> input) => new(mode
     }
 };
 
-// Use ApiKeyCredential for API key authentication
-var credential = new ApiKeyCredential(apiKey);
-var clientOptions = new ResponsesClientOptions
-{
-    Endpoint = new Uri($"{endpoint.TrimEnd('/')}/openai/v1/")
-};
-
-// Initialize OpenAI Response client with Azure endpoint
-var responsesClient = new ResponsesClient(credential, clientOptions);
+// Bind endpoint, pipeline options, and credentials from configuration; reuse the DI singleton.
+builder.AddAzureCredentialResolver();
+builder.AddResponsesClient("Clients:Responses");
+using var host = builder.Build();
+var responsesClient = host.Services.GetRequiredService<ResponsesClient>();
 
 // Example 1: Simple text input
 Console.WriteLine("Example 1: Simple text input");
