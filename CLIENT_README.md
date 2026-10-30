@@ -83,8 +83,9 @@ python decisions_example.py
 ```
 
 The requirements pin OpenAI to the checked GA release 3.37.0. Keyless examples
-use Azure Identity. A `.env` file is optional; real
-environment variables take precedence in the Decisions example.
+use Azure Identity. The Decisions example automatically finds an optional `.env`
+file beside the script or in its parent directories. In this example, existing
+environment variables take precedence over values in the file.
 
 ## TypeScript / JavaScript
 

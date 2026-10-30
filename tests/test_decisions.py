@@ -217,6 +217,48 @@ class DecisionsTests(unittest.TestCase):
                         self.assertIn(option, result.stdout)
                     self.assert_request(deployment)
 
+    def test_python_discovers_dotenv_without_overriding_environment(self) -> None:
+        if not any(sample.language == "Python" for sample in self.samples):
+            self.skipTest("Python was not selected")
+        with tempfile.TemporaryDirectory(prefix="decisions-dotenv-") as temporary:
+            directory = Path(temporary)
+            sample_directory = directory / "sample"
+            sample_directory.mkdir()
+            working_directory = directory / "working"
+            working_directory.mkdir()
+            script = sample_directory / "decisions_example.py"
+            script.write_bytes((ROOT / "src" / "python" / "decisions_example.py").read_bytes())
+            copied = Sample("Python", "key", [sys.executable, str(script)], working_directory)
+            dotenv = (
+                f"AZURE_OPENAI_ENDPOINT={self.endpoint}\n"
+                "AZURE_OPENAI_API_KEY=local-contract-test-key\n"
+            )
+            (directory / ".env").write_text(
+                dotenv + "AZURE_OPENAI_DEPLOYMENT=parent-luna\n", encoding="utf-8",
+            )
+            nearest = sample_directory / ".env"
+            for use_nearest, deployment, expected in (
+                (True, None, "sample-luna"),
+                (False, None, "parent-luna"),
+                (True, "environment-luna", "environment-luna"),
+            ):
+                with self.subTest(nearest=use_nearest, environment_deployment=deployment):
+                    if use_nearest:
+                        nearest.write_text(
+                            dotenv + "AZURE_OPENAI_DEPLOYMENT=sample-luna\n", encoding="utf-8",
+                        )
+                    else:
+                        nearest.unlink()
+                    self.requests.clear()
+                    result = self.run_sample(copied, {
+                        "PYTHON_DOTENV_DISABLED": None,
+                        "AZURE_OPENAI_ENDPOINT": None,
+                        "AZURE_OPENAI_API_KEY": None,
+                        "AZURE_OPENAI_DEPLOYMENT": deployment,
+                    })
+                    self.assertEqual(result.returncode, 0, result.stdout)
+                    self.assert_request(expected)
+
     def test_refusals_are_handled_explicitly(self) -> None:
         type(self).scenario = "refusal"
         for sample in self.samples:

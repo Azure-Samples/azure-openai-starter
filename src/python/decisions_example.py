@@ -9,11 +9,11 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from azure.identity import AzureDeveloperCliCredential, DefaultAzureCredential, get_bearer_token_provider
-from dotenv import load_dotenv
+from dotenv import find_dotenv, load_dotenv
 from openai import OpenAI
 from openai.types.decision import Decision
 
-load_dotenv()
+load_dotenv(find_dotenv())
 
 
 def print_decision(decision: Decision) -> None:
@@ -21,22 +21,25 @@ def print_decision(decision: Decision) -> None:
         raise RuntimeError("Decision returned no answers")
     if decision.usage is None:
         raise RuntimeError("Decision returned no token usage")
+
     for answer in decision.answers:
-        if answer.type == "predicate":
-            print(f"{answer.name}: predicate probability={answer.probability}")
-        elif answer.type == "choice":
-            print(
-                f"{answer.name}: choice value={json.dumps(answer.choice)} "
-                f"confidence={answer.confidence}"
-            )
-            print(f"  probabilities={json.dumps([item.model_dump() for item in answer.probabilities])}")
-        elif answer.type == "score":
-            print(f"{answer.name}: score value={answer.score} confidence={answer.confidence}")
-            print(f"  probabilities={json.dumps([item.model_dump() for item in answer.probabilities])}")
-        elif answer.type == "refusal":
-            print(f"{answer.name}: refusal (send this question for human review)")
-        else:
-            raise RuntimeError(f"Unexpected decision answer type: {answer.type}")
+        match answer.type:
+            case "predicate":
+                print(f"{answer.name}: predicate probability={answer.probability}")
+            case "choice":
+                print(
+                    f"{answer.name}: choice value={json.dumps(answer.choice)} "
+                    f"confidence={answer.confidence}"
+                )
+                print(f"  probabilities={json.dumps([item.model_dump() for item in answer.probabilities])}")
+            case "score":
+                print(f"{answer.name}: score value={answer.score} confidence={answer.confidence}")
+                print(f"  probabilities={json.dumps([item.model_dump() for item in answer.probabilities])}")
+            case "refusal":
+                print(f"{answer.name}: refusal (send this question for human review)")
+            case _:
+                raise RuntimeError(f"Unexpected decision answer type: {answer.type}")
+
     print(f"Usage: {decision.usage.model_dump_json()}")
 
 
