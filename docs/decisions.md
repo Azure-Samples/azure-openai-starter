@@ -1,5 +1,9 @@
 # Classify and score requests with the Azure OpenAI Decisions API
 
+> **Audience:** This page is for coding agents and documentation authors, not for
+> developers learning the starter. Developers should start with the
+> [README](../README.md) and the [client guide](../CLIENT_README.md).
+
 This article is a documentation-authoring source for the
 [Azure OpenAI starter](../README.md). Its language tabs use Microsoft Learn
 syntax and include the runnable sample files, so documentation and tested code
@@ -164,8 +168,10 @@ The script reads Azure's management-plane model catalog. Its output includes
 versions and reported SKUs, a documented East US 2 rollout exclusion, and explicit
 uncertainty for remaining feature, capacity and quota checks. It does not invoke
 a model or enable a feature. Bicep defaults to East US and a DataZoneStandard
-Luna deployment, with GlobalStandard configurable when appropriate. Check the
-current region/model/SKU table and quota; East US 2 is not a Decisions target.
+Luna deployment, with GlobalStandard configurable when appropriate. Its `location`
+parameter allows only the regions that support both the default GPT-6.1 Sol
+deployment and the Decisions API. Check the current region/model/SKU table and
+quota; East US 2 is not a Decisions target.
 
 ## Live validation
 

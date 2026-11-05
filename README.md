@@ -41,7 +41,9 @@ access; Ruby uses an Azure CLI or explicitly selected Azure Developer CLI token.
 - [PowerShell 7 (`pwsh`)](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows)
   on Windows, for the azd preprovision validation hook
 - A supported region and sufficient quota for the model and deployment SKU.
-  Bicep defaults to `eastus`; check the current region table before changing it.
+  Bicep defaults to `eastus` and allows only regions that support both GPT-6.1 Sol and
+  the Decisions API (East US 2 is excluded); check the current region table before
+  changing it.
 - The runtime for your sample: Python 3.10+, Node.js 24+, Go 1.26+,
   .NET 10, Java 21 with Maven, or Ruby 3.3+ with Bundler
 
@@ -128,7 +130,10 @@ the rollout, even if GPT-6 Luna appears in that region's model catalog. Recheck 
 [current rollout documentation](https://learn.microsoft.com/azure/foundry/openai/how-to/decisions)
 and [regional model table](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability).
 The azd preprovision check rejects `AZURE_OPENAI_DEPLOY_DECISIONS=true` with
-`AZURE_LOCATION=eastus2` before creating resources.
+`AZURE_LOCATION=eastus2` before creating resources, and the Bicep `location`
+parameter does not list East US 2 as an allowed region at all. That also applies
+to GPT-6.1 Sol-only deployments, so an existing East US 2 environment cannot be
+provisioned again with this template; create a new environment in an allowed region.
 Use `--all-regions` only when you intend to query every subscription-visible
 location; this can take several minutes.
 
@@ -152,7 +157,8 @@ GPT-6 Luna (`2026-09-22`) is listed in the
 [public Azure model catalog](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure).
 The optional deployment defaults to `DataZoneStandard` and has separate quota
 and billing. Set `AZURE_OPENAI_DECISIONS_SKU=GlobalStandard` before provisioning
-to select that alternative. See the
+to select that alternative; for example, Australia East, Japan East and UK South
+currently list only `GlobalStandard` for Luna. See the
 [deployment-type guidance](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)
 and live model catalog; do not assume every model/SKU is available in every region.
 If you already have a Luna deployment, skip this step and set its name directly.

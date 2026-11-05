@@ -6,7 +6,39 @@ targetScope = 'resourceGroup'
 @maxLength(64)
 param environmentName string
 
-@description('Primary location; defaults to East US. Check the current model/SKU region table before changing. Decisions is excluded in East US 2: https://aka.ms/foundrydecisionsapi')
+@description('Primary location; defaults to East US. Only allow the locations supported by the default deployed OpenAI model (GPT-6.1 Sol, GlobalStandard) and by the Decisions API (GPT-6 Luna).')
+@allowed([
+  // GPT-6.1 Sol (GlobalStandard) and GPT-6 Luna (Decisions) availability, verified 2026-11-05.
+  // https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability
+  // East US 2 is excluded because Decisions is not rolling out there: https://aka.ms/foundrydecisionsapi
+  'australiaeast'
+  'brazilsouth'
+  'canadacentral'
+  'canadaeast'
+  'centralus'
+  'eastus'
+  'francecentral'
+  'germanywestcentral'
+  'italynorth'
+  'japaneast'
+  'koreacentral'
+  'northcentralus'
+  'norwayeast'
+  'polandcentral'
+  'southafricanorth'
+  'southcentralus'
+  'southeastasia'
+  'southindia'
+  'spaincentral'
+  'swedencentral'
+  'switzerlandnorth'
+  'switzerlandwest'
+  'uaenorth'
+  'uksouth'
+  'westeurope'
+  'westus'
+  'westus3'
+])
 @metadata({
   azd: {
     type: 'location'

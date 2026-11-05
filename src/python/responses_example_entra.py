@@ -37,6 +37,8 @@ def main():
     # For production, use a specific credential (e.g. ManagedIdentityCredential) or set
     # AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
     # https://aka.ms/azsdk/python/identity/credential-chains#defaultazurecredential-overview
+    # DefaultAzureCredential builds the Azure Developer CLI credential without a tenant, so when
+    # AZURE_TOKEN_CREDENTIALS selects that credential, create it directly with the resource tenant.
     credential = (
         AzureDeveloperCliCredential(tenant_id=os.getenv("AZURE_TENANT_ID"))
         if os.getenv("AZURE_TOKEN_CREDENTIALS", "").lower() == "azuredeveloperclicredential"

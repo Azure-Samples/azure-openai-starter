@@ -9,11 +9,11 @@ from pathlib import Path
 from urllib.parse import urlsplit
 
 from azure.identity import AzureDeveloperCliCredential, DefaultAzureCredential, get_bearer_token_provider
-from dotenv import find_dotenv, load_dotenv
+from dotenv import load_dotenv
 from openai import OpenAI
 from openai.types.decision import Decision
 
-load_dotenv(find_dotenv())
+load_dotenv()
 
 
 def print_decision(decision: Decision) -> None:
@@ -63,6 +63,75 @@ def image_url(source: str | None) -> str | None:
     return f"data:{media_type};base64,{base64.b64encode(path.read_bytes()).decode('ascii')}"
 
 
+def text_request() -> tuple[str, list[dict]]:
+    """Scenario 1: route a billing ticket (text input)."""
+    text = "I was charged twice for order 123. Please refund the duplicate charge."
+    questions = [
+        {
+            "type": "predicate",
+            "name": "refund_requested",
+            "instructions": "Does the customer request a refund?",
+        },
+        {
+            "type": "choice",
+            "name": "department",
+            "instructions": "Which department should handle this request?",
+            "choices": [
+                {"value": "billing", "description": "Payments and refunds."},
+                {"value": "technical", "description": "Product problems."},
+                {"value": "other", "description": "Other requests."},
+            ],
+        },
+        {
+            "type": "score",
+            "name": "severity",
+            "instructions": "How severe is this issue?",
+            "levels": [
+                {"label": "Low", "description": "Minor inconvenience."},
+                {"label": "Medium", "description": "Needs attention."},
+                {"label": "High", "description": "Urgent action needed."},
+            ],
+        },
+    ]
+    return text, questions
+
+
+def photo_request(photo: str) -> tuple[list[dict], list[dict]]:
+    """Scenario 2: assess a photo (an HTTPS URL or an inline base64 data URL)."""
+    messages = [{"role": "user", "content": [
+        {"type": "input_text", "text": "Inspect the photo for visible damage and classify the main object."},
+        {"type": "input_image", "image_url": photo},
+    ]}]
+    questions = [
+        {
+            "type": "predicate",
+            "name": "visible_damage",
+            "instructions": "Does the photo show visible damage to the main object?",
+        },
+        {
+            "type": "choice",
+            "name": "category",
+            "instructions": "Which category best describes the main object?",
+            "choices": [
+                {"value": "parcel", "description": "A package or parcel."},
+                {"value": "vehicle", "description": "A vehicle."},
+                {"value": "other", "description": "None of these categories."},
+            ],
+        },
+        {
+            "type": "score",
+            "name": "severity",
+            "instructions": "How severe is the visible damage?",
+            "levels": [
+                {"label": "Low", "description": "No damage or minor cosmetic damage."},
+                {"label": "Medium", "description": "Visible damage that needs attention."},
+                {"label": "High", "description": "Severe damage or loss of function."},
+            ],
+        },
+    ]
+    return messages, questions
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--image", help="Real photo file or publicly accessible HTTPS photo URL")
@@ -97,10 +166,14 @@ def main(argv: list[str] | None = None) -> None:
         )
 
     photo = image_url(args.image)
+    decision_input, questions = text_request() if photo is None else photo_request(photo)
     credential = None
     # Entra ID is the default. Set AZURE_OPENAI_API_KEY only for the key fallback.
     if not api_key:
-        # An explicitly selected azd credential needs its resource tenant forwarded.
+        # DefaultAzureCredential builds the Azure Developer CLI credential without a tenant,
+        # so when AZURE_TOKEN_CREDENTIALS selects that credential, create it directly with
+        # the resource tenant. Otherwise a login that spans tenants may get a token for the
+        # wrong one.
         credential = (
             AzureDeveloperCliCredential(tenant_id=os.getenv("AZURE_TENANT_ID"))
             if os.getenv("AZURE_TOKEN_CREDENTIALS", "").lower() == "azuredeveloperclicredential"
@@ -115,58 +188,11 @@ def main(argv: list[str] | None = None) -> None:
             base_url=f"{endpoint.rstrip('/')}/openai/v1/",
             api_key=api_key,
         ) as client:
+            # Batch related questions; the service accepts at most 400.
             decision = client.decisions.create(
                 model=deployment,
-                input=(
-                    [{"role": "user", "content": [
-                        {"type": "input_text", "text": "Inspect the photo for visible damage and classify the main object."},
-                        {"type": "input_image", "image_url": photo},
-                    ]}]
-                    if photo is not None else
-                    "I was charged twice for order 123. Please refund the duplicate charge."
-                ),
-                # Batch related questions; the service accepts at most 400.
-                questions=[
-                    {
-                        "type": "predicate",
-                        "name": "visible_damage" if photo else "refund_requested",
-                        "instructions": (
-                            "Does the photo show visible damage to the main object?"
-                            if photo else "Does the customer request a refund?"
-                        ),
-                    },
-                    {
-                        "type": "choice",
-                        "name": "category" if photo else "department",
-                        "instructions": (
-                            "Which category best describes the main object?"
-                            if photo else "Which department should handle this request?"
-                        ),
-                        "choices": [
-                            {"value": "parcel", "description": "A package or parcel."},
-                            {"value": "vehicle", "description": "A vehicle."},
-                            {"value": "other", "description": "None of these categories."},
-                        ] if photo else [
-                            {"value": "billing", "description": "Payments and refunds."},
-                            {"value": "technical", "description": "Product problems."},
-                            {"value": "other", "description": "Other requests."},
-                        ],
-                    },
-                    {
-                        "type": "score",
-                        "name": "severity",
-                        "instructions": "How severe is the visible damage?" if photo else "How severe is this issue?",
-                        "levels": [
-                            {"label": "Low", "description": "No damage or minor cosmetic damage."},
-                            {"label": "Medium", "description": "Visible damage that needs attention."},
-                            {"label": "High", "description": "Severe damage or loss of function."},
-                        ] if photo else [
-                            {"label": "Low", "description": "Minor inconvenience."},
-                            {"label": "Medium", "description": "Needs attention."},
-                            {"label": "High", "description": "Urgent action needed."},
-                        ],
-                    },
-                ],
+                input=decision_input,
+                questions=questions,
             )
             print_decision(decision)
     finally:
