@@ -45,7 +45,7 @@ SDK baselines checked **2026-10-23**:
 | Go | v3.86.0 | Native SDK |
 | Java | 4.91.0 | Native SDK |
 | Ruby | 0.111.0 | Native SDK |
-| C# | OpenAI 2.14.0 for Responses | REST using `HttpClient`; no typed Decisions client in this version |
+| C# | OpenAI 2.15.0 (checked 2026-11-05) | Native SDK (experimental typed `DecisionsClient`) |
 
 These are exact starter pins, not claims that earlier SDKs cannot run a basic
 text example. The Learn minimums, Python 3.26.0 and JavaScript 7.30.0, cover basic
@@ -96,16 +96,17 @@ From `src/ruby`, run `bundle install`, then
 
 [!code-ruby[Decisions with the native Ruby SDK](../src/ruby/decisions_example.rb)]
 
-# [C# / REST](#tab/csharp)
+# [C#](#tab/csharp)
 
 From `src/dotnet`, run `dotnet run decisions_example.cs` with the .NET 10 SDK.
 The [.NET configuration/DI guide](../src/dotnet/README.md) explains how to configure
-the named HTTP transport, credential source, endpoint and timeout, while retaining
-the common starter environment-variable setup.
-The HTTP call is an **interim** implementation; it has a TODO to move to the
-typed client once a released SDK supports Decisions. Do not use an unreleased class.
+the credential source, endpoint and timeout, while retaining the common starter
+environment-variable setup.
+The example uses the typed `DecisionsClient` and its strongly typed
+`CreateDecisionAsync` method from OpenAI 2.15.0. That client is experimental in the
+SDK, so the sample suppresses the `OPENAI001` and `SCME0002` diagnostics.
 
-[!code-csharp[Decisions with HttpClient](../src/dotnet/decisions_example.cs)]
+[!code-csharp[Decisions with the native .NET SDK](../src/dotnet/decisions_example.cs)]
 
 ---
 

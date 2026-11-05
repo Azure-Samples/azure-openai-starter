@@ -1,8 +1,8 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1440 880" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif">
   <title>The Azure OpenAI Starter Kit</title>
-  <desc>Five SDKs call Responses; Python, TypeScript, Go, Java and Ruby use native Decisions
-    clients, while C# calls Decisions with HttpClient REST. Authentication uses Microsoft Entra ID
+  <desc>Five SDKs call Responses; Python, TypeScript, Go, Java, Ruby and C# use native Decisions
+    clients. Authentication uses Microsoft Entra ID
     or an API key. Ruby can obtain an Entra token from the Azure CLI. Azure Developer CLI and
     Bicep provision an Azure OpenAI account, GPT-6.1 Sol at version 2026-09-29, and a user role.
     GPT-6 Luna at version 2026-09-22 is an optional DataZoneStandard or GlobalStandard deployment,
@@ -44,7 +44,7 @@
     <text x="720" y="97" font-size="19" fill="#5A6B7C">GPT-6.1 Sol Responses · optional GPT-6 Luna Decisions · one-command deployment</text>
   </g>
   <g transform="translate(60,175)">
-    <text y="-24" font-size="13" font-weight="700" fill="#5A6B7C" letter-spacing="1">SDK CLIENTS + C# REST FALLBACK</text>
+    <text y="-24" font-size="13" font-weight="700" fill="#5A6B7C" letter-spacing="1">NATIVE SDK CLIENTS</text>
     <g>
       <use href="#clientCard" />
       <rect x="18" y="18" width="46" height="46" rx="10" fill="#E8F2FA" />
@@ -71,7 +71,7 @@
       <rect x="18" y="18" width="46" height="46" rx="10" fill="#F0EBFC" />
       <text x="41" y="47" text-anchor="middle" font-size="14" font-weight="700" fill="#512BD4">.NET</text>
       <text x="82" y="34" font-size="22" font-weight="600" fill="#0A2540">.NET</text>
-      <text x="82" y="59" font-size="15" fill="#5A6B7C">Responses SDK · Decisions REST</text>
+      <text x="82" y="59" font-size="15" fill="#5A6B7C">Responses + Decisions SDK</text>
     </g>
     <g transform="translate(0,352)">
       <use href="#clientCard" />
@@ -109,7 +109,7 @@
     <rect width="210" height="107" rx="14" fill="#FFFFFF" stroke="#C7DDF0" stroke-dasharray="5 4" />
     <text x="105" y="32" text-anchor="middle" font-size="18" font-weight="600" fill="#0A2540">API key</text>
     <text x="105" y="57" text-anchor="middle" font-size="14" fill="#5A6B7C">Development alternative</text>
-    <text x="105" y="82" text-anchor="middle" font-size="13" fill="#5A6B7C">SDKs and REST</text>
+    <text x="105" y="82" text-anchor="middle" font-size="13" fill="#5A6B7C">Supported in all six SDKs</text>
   </g>
   <g transform="translate(795,145)">
     <rect width="590" height="600" rx="20" fill="url(#azureFrameBg)" stroke="#7BB3DC" stroke-width="1.8" filter="url(#cardShadow)" />
@@ -152,6 +152,6 @@
     <text y="1" font-size="10.5" font-weight="600" fill="#0A2540">bearer token</text>
   </g>
   <text x="720" y="795" text-anchor="middle" font-size="17" fill="#5A6B7C">
-    Bicep infrastructure · Entra ID + API key · Five native Decisions SDKs + C# REST
+    Bicep infrastructure · Entra ID + API key · Six native Decisions SDKs
   </text>
 </svg>

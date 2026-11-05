@@ -141,14 +141,13 @@ dotnet run responses_example_entra.cs
 dotnet run decisions_example.cs
 ```
 
-Responses uses the OpenAI 2.14.0 SDK. Decisions intentionally uses `HttpClient`
-against `/openai/v1/decisions`, with API-key or Microsoft Entra authentication,
-because this package has no typed Decisions client. See the [.NET guide](./src/dotnet/README.md).
+Responses and Decisions both use the OpenAI 2.15.0 SDK. Decisions uses its typed,
+experimental `DecisionsClient` and the strongly typed `CreateDecisionAsync` method, with
+API-key or Microsoft Entra authentication. See the [.NET guide](./src/dotnet/README.md).
 All .NET examples register their clients through the Generic Host and dependency
-injection. OpenAI's `AddResponsesClient` binds Responses options and
-credentials; Decisions uses a named `HttpClient` and configurable Azure
-credential settings. The Responses examples require native client configuration;
-the interim Decisions REST example still supports the starter environment variables.
+injection. OpenAI's `AddResponsesClient` and `AddDecisionsClient` bind each client's
+options and credentials. The Responses examples require native client configuration;
+the Decisions example still supports the starter environment variables.
 Use `Clients__Responses__...` or `Clients__Decisions__...` settings, or the
 optional [appsettings example](./src/dotnet/appsettings.example.json), to override
 client options and credential sources without editing code. No language sample

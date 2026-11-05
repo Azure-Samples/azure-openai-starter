@@ -84,14 +84,35 @@ bind or mutate client settings; the SDK extension handles that.
 Keep real configuration and keys out of source control. The example configuration
 is tracked; real `appsettings*.json` files are ignored.
 
-## Decisions: interim REST
+## Decisions: use the typed `DecisionsClient`
 
-OpenAI 2.14.0 has no typed Decisions client. The Decisions example remains an
-interim `HttpClient` REST call to `/openai/v1/decisions`, not an Azure OpenAI
-wrapper. It uses DI for the named HTTP transport and configured Entra credentials.
-A TODO records the future switch to a released typed OpenAI client.
+OpenAI 2.15.0 adds an experimental typed `DecisionsClient`. The Decisions example
+uses its strongly typed `CreateDecisionAsync(DecisionCreationOptions)` method; it
+does not call the raw `BinaryContent` protocol method or build JSON by hand. It is
+registered the same way as the Responses client:
 
-The common starter environment variables remain supported by this REST example:
+```csharp
+var builder = Host.CreateApplicationBuilder();
+builder.AddAzureCredentialResolver();
+builder.AddDecisionsClient("Clients:Decisions");
+using var host = builder.Build();
+var decisionsClient = host.Services.GetRequiredService<DecisionsClient>();
+```
+
+The request is built from typed models: a `DecisionsUserMessageItem` holds the
+input, and a `DecisionsPredicateQuestion`, `DecisionsChoiceQuestion` and
+`DecisionsScoreQuestion` hold the three batched questions. The response is a
+`DecisionResource`; pattern-match each answer as a `DecisionsPredicateAnswer`,
+`DecisionsChoiceAnswer`, `DecisionsScoreAnswer` or `DecisionsRefusalAnswer` so a
+refusal is handled explicitly instead of cast away.
+
+A choice is a string or a boolean. `DecisionsChoiceValue` has no `ToString()` or
+equality, so read its `StringValue` or `BooleanValue` instead of comparing or
+printing the wrapper.
+
+The common starter environment variables remain supported by the Decisions example
+and are translated into the `Clients:Decisions` configuration before the client is
+registered:
 
 ```powershell
 $env:AZURE_OPENAI_ENDPOINT = "https://YOUR-RESOURCE.openai.azure.com/"
@@ -103,20 +124,26 @@ dotnet run decisions_example.cs -- --image ..\..\images\decisions-photo.png
 Alternatively configure `Clients:Decisions` using the included JSON example or
 `Clients__Decisions__...` environment keys. `Options:Endpoint` is the full v1 base
 URL, `Model` is the Luna deployment name, and `Credential` selects authentication.
-`Options:NetworkTimeout` configures the HTTP timeout.
+`Options:NetworkTimeout` configures the SDK pipeline's network timeout. An explicit
+`Clients:Decisions` setting always wins over the starter variables. The example also
+requires an HTTPS endpoint (HTTP is allowed only for a loopback test server with an
+API key).
 
 The optional `--image PATH_OR_HTTPS_URL` accepts a real PNG, JPEG, WebP or GIF
 photo of at most 32 MiB, encoded inline, or a publicly accessible HTTPS URL.
 Validation precedes credentials; no client-side URL download occurs. The sample
-batches three questions, prints named answers/probabilities/usage, and retains
-explicit HTTP-error, refusal and malformed-response handling.
+batches three questions, prints named answers/probabilities/usage, and fails
+explicitly on HTTP errors and on responses it cannot use: no answers, no usage, an
+unknown answer kind, or a choice without a value. The typed client is more lenient
+than hand-written JSON parsing, so it does not check every field of every answer.
 
 ## Packages and validation
 
-The samples use OpenAI **2.14.0** and Microsoft.Extensions Hosting/HTTP **10.0.10**.
+The samples use OpenAI **2.15.0** and Microsoft.Extensions Hosting **10.0.10**.
 Azure.Core **1.62.0** supplies the `Azure.Identity` credential resolver/types for
 authentication; it is not the Azure OpenAI client library. The shipped
-configuration APIs are experimental (`SCME0002`), explicitly suppressed here.
+configuration APIs and the Decisions client are experimental (`SCME0002` and
+`OPENAI001`), explicitly suppressed here.
 Native-AOT publishing is disabled for reflection-based configuration.
 
 From the repository root, to test just .NET with local synthetic HTTP/CLI fixtures:
@@ -127,6 +154,8 @@ python -m unittest discover -s tests -v
 ```
 
 References:
-- [OpenAI `AddResponsesClient`](https://github.com/openai/openai-dotnet/blob/OpenAI_2.14.0/OpenAI.Responses/src/Custom/OpenAIResponsesHostBuilderExtensions.cs)
-- [System.ClientModel configuration/DI](https://github.com/Azure/azure-sdk-for-net/blob/System.ClientModel_1.15.0/sdk/core/System.ClientModel/src/docs/ConfigurationAndDependencyInjection.md)
+- [OpenAI `AddResponsesClient`](https://github.com/openai/openai-dotnet/blob/OpenAI_2.15.0/OpenAI.Responses/src/Custom/OpenAIResponsesHostBuilderExtensions.cs)
+- [OpenAI `AddDecisionsClient`](https://github.com/openai/openai-dotnet/blob/OpenAI_2.15.0/OpenAI/src/Custom/OpenAIHostBuilderExtensions.cs)
+- [OpenAI .NET Decisions usage](https://github.com/openai/openai-dotnet/blob/OpenAI_2.15.0/README.md#how-to-create-decisions)
+- [System.ClientModel configuration/DI](https://github.com/Azure/azure-sdk-for-net/blob/System.ClientModel_1.16.0/sdk/core/System.ClientModel/src/docs/ConfigurationAndDependencyInjection.md)
 - [Azure credential resolver](https://github.com/Azure/azure-sdk-for-net/blob/Azure.Core_1.62.0/sdk/core/Azure.Core/src/Identity/ConfigurationExtensions.cs)

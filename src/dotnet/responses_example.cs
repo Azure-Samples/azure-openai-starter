@@ -1,6 +1,6 @@
 #!/usr/bin/dotnet run
 
-#:package OpenAI@2.14.0
+#:package OpenAI@2.15.0
 #:package Azure.Core@1.62.0
 #:package Microsoft.Extensions.Hosting@10.0.10
 #:property PublishAot=false

@@ -1,24 +1,23 @@
 #!/usr/bin/dotnet run
 
+#:package OpenAI@2.15.0
 #:package Azure.Core@1.62.0
 #:package Microsoft.Extensions.Hosting@10.0.10
-#:package Microsoft.Extensions.Http@10.0.10
 #:property PublishAot=false
 
-using System.Net.Http.Headers;
-using System.ClientModel.Primitives;
-using System.Text.Json;
+// Azure OpenAI GPT-6 Luna - Decisions API Example
+// Classifies a support request, or a photo, with the typed OpenAI DecisionsClient.
 
-using Azure.Core;
 using Azure.Identity;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using OpenAI;
+using OpenAI.Decisions;
 
-#pragma warning disable SCME0002 // Azure.Core configuration and credential APIs are experimental; the opt-in is intentional.
+#pragma warning disable OPENAI001 // The OpenAI Decisions API is experimental.
+#pragma warning disable SCME0002 // System.ClientModel configuration/DI APIs (AddDecisionsClient, the Azure credential resolver) are experimental; the opt-in is intentional.
 
 var imageUrl = ImageInput(args);
-var withImage = imageUrl is not null;
 var builder = Host.CreateApplicationBuilder();
 var settings = builder.Configuration.GetSection("Clients:Decisions");
 if (settings["Options:Endpoint"] is null)
@@ -85,201 +84,148 @@ if (uri.Scheme != Uri.UriSchemeHttps && !(uri.Scheme == Uri.UriSchemeHttp && uri
 var model = settings["Model"] ?? builder.Configuration["AZURE_OPENAI_DEPLOYMENT"] ?? "gpt-6-luna";
 if (string.IsNullOrWhiteSpace(model))
     throw new InvalidOperationException("AZURE_OPENAI_DEPLOYMENT must not be empty");
-var predicateName = withImage ? "visible_damage" : "refund_requested";
-var choiceName = withImage ? "category" : "department";
 
+// Bind endpoint, pipeline options, and credentials from configuration; reuse the DI singleton.
 builder.AddAzureCredentialResolver();
-builder.Services.AddSingleton(services => builder.Configuration.GetAzureCredentialSettings(
-    "Clients:Decisions:Credential", services.GetServices<CredentialResolver>().ToArray())
-    ?? throw new InvalidOperationException("Clients:Decisions:Credential is required"));
-builder.Services.AddHttpClient("Decisions", client =>
-{
-    client.BaseAddress = new Uri($"{uri.AbsoluteUri.TrimEnd('/')}/");
-    client.Timeout = TimeSpan.Parse(settings["Options:NetworkTimeout"] ?? "00:01:40");
-}).ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler { AllowAutoRedirect = false });
+builder.AddDecisionsClient("Clients:Decisions");
 using var host = builder.Build();
-var credentials = host.Services.GetRequiredService<CredentialSettings>();
-using var httpClient = host.Services.GetRequiredService<IHttpClientFactory>().CreateClient("Decisions");
+var decisionsClient = host.Services.GetRequiredService<DecisionsClient>();
 
-// Interim REST sample: OpenAI .NET 2.14.0 has no typed Decisions client.
-// TODO: Switch to the typed client when a stable SDK exposes Decisions.
-object input = "I was charged twice for order 123. Please refund the duplicate charge.";
-if (withImage)
-{
-    input = new[]
-    {
-        new
-        {
-            role = "user",
-            content = new object[]
-            {
-                new { type = "input_text", text = "Inspect the photo for visible damage and classify the main object." },
-                new { type = "input_image", image_url = imageUrl }
-            }
-        }
-    };
-}
-// Batch all three questions in one call.
+var (input, questions) = imageUrl is null ? TextScenario() : PhotoScenario(imageUrl);
+
+// Batch all three questions in one call; the service accepts up to 400.
 // [START decisions_request]
-var payload = new
-{
-    model,
-    input,
-    questions = new object[]
-    {
-        new
-        {
-            type = "predicate",
-            name = predicateName,
-            instructions = withImage
-                ? "Does the photo show visible damage to the main object?"
-                : "Does the customer request a refund?"
-        },
-        new
-        {
-            type = "choice",
-            name = choiceName,
-            instructions = withImage
-                ? "Which category best describes the main object?"
-                : "Which department should handle this request?",
-            choices = new[]
-            {
-                new { value = withImage ? "parcel" : "billing",
-                    description = withImage ? "A package or parcel." : "Payments and refunds." },
-                new { value = withImage ? "vehicle" : "technical",
-                    description = withImage ? "A vehicle." : "Product problems." },
-                new { value = "other",
-                    description = withImage ? "None of these categories." : "Other requests." }
-            }
-        },
-        new
-        {
-            type = "score",
-            name = "severity",
-            instructions = withImage ? "How severe is the visible damage?" : "How severe is this issue?",
-            levels = new[]
-            {
-                new { label = "Low",
-                    description = withImage ? "No damage or minor cosmetic damage." : "Minor inconvenience." },
-                new { label = "Medium",
-                    description = withImage ? "Visible damage that needs attention." : "Needs attention." },
-                new { label = "High",
-                    description = withImage ? "Severe damage or loss of function." : "Urgent action needed." }
-            }
-        }
-    }
-};
-using var request = new HttpRequestMessage(HttpMethod.Post, "decisions");
-if (useKey)
-    request.Headers.Add("api-key", credentials.Key);
-else
-{
-    if (credentials.TokenProvider is not TokenCredential credential)
-        throw new InvalidOperationException("Configured credential source did not resolve to an Azure token credential");
-    var scope = settings["Credential:Scope"]
-        ?? throw new InvalidOperationException("Clients:Decisions:Credential:Scope is required");
-    var token = await credential.GetTokenAsync(new TokenRequestContext([scope]), CancellationToken.None);
-    request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token.Token);
-}
-request.Content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json");
-using var response = await httpClient.SendAsync(request);
+DecisionCreationOptions options = new(input, model, questions);
+DecisionResource decision = await decisionsClient.CreateDecisionAsync(options);
 // [END decisions_request]
 
-var responseBody = await response.Content.ReadAsStringAsync();
-if (!response.IsSuccessStatusCode)
-    throw new HttpRequestException(
-        $"Decisions HTTP {(int)response.StatusCode} {response.ReasonPhrase}: {responseBody}",
-        null, response.StatusCode);
-using var document = JsonDocument.Parse(responseBody);
-var root = document.RootElement;
-RequiredString(root, "model");
-var answers = Required(root, "answers", JsonValueKind.Array);
-if (answers.GetArrayLength() == 0)
-    throw new InvalidDataException("Decisions response has empty answers");
-var usage = Required(root, "usage", JsonValueKind.Object);
-var inputTokens = RequiredInteger(usage, "input_tokens");
-var outputTokens = RequiredInteger(usage, "output_tokens");
-var totalTokens = RequiredInteger(usage, "total_tokens");
+PrintDecision(decision);
 
-var lines = new List<string>();
-var expectedNames = new HashSet<string>([predicateName, choiceName, "severity"], StringComparer.Ordinal);
-var seen = new HashSet<string>(StringComparer.Ordinal);
-foreach (var answer in answers.EnumerateArray())
+// Scenario 1: route a billing ticket (text input).
+static (List<DecisionsItem> Input, List<DecisionsQuestion> Questions) TextScenario() => (
+    [
+        new DecisionsUserMessageItem(
+        [
+            new DecisionsInputTextContentPart("I was charged twice for order 123. Please refund the duplicate charge.")
+        ])
+    ],
+    [
+        new DecisionsPredicateQuestion(
+            [new DecisionsInputTextInstructionsPart("Does the customer request a refund?")])
+        {
+            Name = "refund_requested"
+        },
+        new DecisionsChoiceQuestion(
+            [
+                new DecisionsChoice("billing") { Description = "Payments and refunds." },
+                new DecisionsChoice("technical") { Description = "Product problems." },
+                new DecisionsChoice("other") { Description = "Other requests." }
+            ],
+            [new DecisionsInputTextInstructionsPart("Which department should handle this request?")])
+        {
+            Name = "department"
+        },
+        new DecisionsScoreQuestion(
+            [new DecisionsInputTextInstructionsPart("How severe is this issue?")],
+            [
+                new DecisionsScoreLevel("Low") { Description = "Minor inconvenience." },
+                new DecisionsScoreLevel("Medium") { Description = "Needs attention." },
+                new DecisionsScoreLevel("High") { Description = "Urgent action needed." }
+            ])
+        {
+            Name = "severity"
+        }
+    ]);
+
+// Scenario 2: assess a photo (an HTTPS URL or an inline base64 data URL).
+static (List<DecisionsItem> Input, List<DecisionsQuestion> Questions) PhotoScenario(string imageUrl) => (
+    [
+        new DecisionsUserMessageItem(
+        [
+            new DecisionsInputTextContentPart("Inspect the photo for visible damage and classify the main object."),
+            new DecisionsInputImageContentPart(imageUrl)
+        ])
+    ],
+    [
+        new DecisionsPredicateQuestion(
+            [new DecisionsInputTextInstructionsPart("Does the photo show visible damage to the main object?")])
+        {
+            Name = "visible_damage"
+        },
+        new DecisionsChoiceQuestion(
+            [
+                new DecisionsChoice("parcel") { Description = "A package or parcel." },
+                new DecisionsChoice("vehicle") { Description = "A vehicle." },
+                new DecisionsChoice("other") { Description = "None of these categories." }
+            ],
+            [new DecisionsInputTextInstructionsPart("Which category best describes the main object?")])
+        {
+            Name = "category"
+        },
+        new DecisionsScoreQuestion(
+            [new DecisionsInputTextInstructionsPart("How severe is the visible damage?")],
+            [
+                new DecisionsScoreLevel("Low") { Description = "No damage or minor cosmetic damage." },
+                new DecisionsScoreLevel("Medium") { Description = "Visible damage that needs attention." },
+                new DecisionsScoreLevel("High") { Description = "Severe damage or loss of function." }
+            ])
+        {
+            Name = "severity"
+        }
+    ]);
+
+static void PrintDecision(DecisionResource decision)
 {
-    var rawName = RequiredString(answer, "name");
-    var name = JsonSerializer.Serialize(rawName);
-    if (!expectedNames.Contains(rawName))
-        throw new InvalidDataException($"Decisions response has an unknown answer name: {name}");
-    if (!seen.Add(rawName))
-        throw new InvalidDataException($"Decisions response has a duplicate answer: {name}");
-    var type = RequiredString(answer, "type");
-    switch (type)
+    if (decision.Answers.Count == 0)
+        throw new InvalidDataException("Decision returned no answers");
+    if (decision.Usage is not { } usage)
+        throw new InvalidDataException("Decision returned no token usage");
+
+    // Any question can return a refusal instead of an answer, so match on the answer type
+    // rather than casting every answer to a predicate.
+    foreach (var answer in decision.Answers)
     {
-        case "predicate":
-            lines.Add($"{name} (predicate): probability={RequiredNumber(answer, "probability", unit: true)}");
-            break;
-        case "choice":
-            var choice = RequiredChoice(answer, "choice");
-            var confidence = RequiredNumber(answer, "confidence", unit: true);
-            var choiceProbabilities = Required(answer, "probabilities", JsonValueKind.Array);
-            if (choiceProbabilities.GetArrayLength() == 0)
-                throw new InvalidDataException($"Choice answer {name} is missing probabilities");
-            var choiceOptions = new List<string>();
-            foreach (var item in choiceProbabilities.EnumerateArray())
-            {
-                var value = RequiredChoice(item, "value");
-                var chance = RequiredNumber(item, "probability", unit: true);
-                choiceOptions.Add($"{{value={value}; probability={chance}}}");
-            }
-            lines.Add($"{name} (choice): value={choice}; confidence={confidence}; "
-                + $"probabilities=[{string.Join(", ", choiceOptions)}]");
-            break;
-        case "score":
-            var score = RequiredNumber(answer, "score");
-            var scoreConfidence = RequiredNumber(answer, "confidence", unit: true);
-            var scoreProbabilities = Required(answer, "probabilities", JsonValueKind.Array);
-            if (scoreProbabilities.GetArrayLength() == 0)
-                throw new InvalidDataException($"Score answer {name} is missing probabilities");
-            var scoreOptions = new List<string>();
-            foreach (var item in scoreProbabilities.EnumerateArray())
-            {
-                var label = JsonSerializer.Serialize(RequiredString(item, "label"));
-                var value = RequiredInteger(item, "value");
-                var chance = RequiredNumber(item, "probability", unit: true);
-                scoreOptions.Add($"{{label={label}; value={value}; probability={chance}}}");
-            }
-            lines.Add($"{name} (score): score={score}; confidence={scoreConfidence}; "
-                + $"probabilities=[{string.Join(", ", scoreOptions)}]");
-            break;
-        case "refusal":
-            lines.Add($"{name} (refusal): refused");
-            break;
-        default:
-            throw new InvalidDataException($"Unknown Decisions answer type: {JsonSerializer.Serialize(type)}");
+        switch (answer)
+        {
+            case DecisionsPredicateAnswer predicate:
+                Console.WriteLine($"{predicate.Name} (predicate): probability={predicate.Probability}");
+                break;
+            case DecisionsChoiceAnswer choice:
+                var choices = choice.Probabilities.Select(item =>
+                    $"{{value={ChoiceText(item.Value)}; probability={item.Probability}}}");
+                Console.WriteLine($"{choice.Name} (choice): value={ChoiceText(choice.Choice)}; "
+                    + $"confidence={choice.Confidence}; probabilities=[{string.Join(", ", choices)}]");
+                break;
+            case DecisionsScoreAnswer score:
+                var levels = score.Probabilities.Select(item =>
+                    $"{{label={item.Label}; value={item.Value}; probability={item.Probability}}}");
+                Console.WriteLine($"{score.Name} (score): score={score.Score}; "
+                    + $"confidence={score.Confidence}; probabilities=[{string.Join(", ", levels)}]");
+                break;
+            case DecisionsRefusalAnswer refusal:
+                Console.WriteLine($"{refusal.Name} (refusal): send this question for human review");
+                break;
+            default:
+                throw new InvalidDataException($"Unexpected decision answer type: {answer.Kind}");
+        }
     }
-}
-foreach (var expected in expectedNames)
-    if (!seen.Contains(expected))
-        throw new InvalidDataException($"Decisions response is missing answer: {expected}");
-var usageLine = $"Usage: input_tokens={inputTokens}; output_tokens={outputTokens}; total_tokens={totalTokens}";
-if (usage.TryGetProperty("input_tokens_details", out var inputDetails))
-{
-    if (inputDetails.ValueKind != JsonValueKind.Object)
-        throw new InvalidDataException("Decisions response has invalid input_tokens_details");
-    foreach (var field in new[] { "cached_tokens", "cache_write_tokens" })
-        if (inputDetails.TryGetProperty(field, out _))
-            usageLine += $"; {field}={RequiredInteger(inputDetails, field)}";
-}
-if (usage.TryGetProperty("output_tokens_details", out var outputDetails))
-{
-    if (outputDetails.ValueKind != JsonValueKind.Object)
-        throw new InvalidDataException("Decisions response has invalid output_tokens_details");
-    if (outputDetails.TryGetProperty("reasoning_tokens", out _))
-        usageLine += $"; reasoning_tokens={RequiredInteger(outputDetails, "reasoning_tokens")}";
-}
-lines.Add(usageLine);
-foreach (var line in lines)
+
+    var line = $"Usage: input_tokens={usage.InputTokenCount}; output_tokens={usage.OutputTokenCount}; "
+        + $"total_tokens={usage.TotalTokenCount}";
+    if (usage.InputTokenDetails is { } inputDetails)
+        line += $"; cached_tokens={inputDetails.CachedTokenCount}; cache_write_tokens={inputDetails.CacheWriteTokenCount}";
+    if (usage.OutputTokenDetails is { } outputDetails)
+        line += $"; reasoning_tokens={outputDetails.ReasoningTokenCount}";
     Console.WriteLine(line);
+}
+
+// A choice is a string or a boolean, and DecisionsChoiceValue has no ToString() or equality.
+// Read the active component instead of formatting or comparing the wrapper object. The typed
+// client does not require a value, so reject a response without one instead of printing nothing.
+static string ChoiceText(DecisionsChoiceValue? value) =>
+    value is null
+        ? throw new InvalidDataException("Choice answer has no value")
+        : value.StringValue ?? value.BooleanValue?.ToString().ToLowerInvariant() ?? string.Empty;
 
 static string? ImageInput(string[] args)
 {
@@ -327,43 +273,4 @@ static string? ImageInput(string[] args)
     {
         throw new ArgumentException("Image file must exist and be readable");
     }
-}
-
-static JsonElement Required(JsonElement parent, string name, JsonValueKind kind)
-{
-    if (parent.ValueKind != JsonValueKind.Object || !parent.TryGetProperty(name, out var value)
-        || value.ValueKind != kind)
-        throw new InvalidDataException($"Malformed Decisions response: missing or invalid {name}");
-    return value;
-}
-
-static string RequiredString(JsonElement parent, string name)
-{
-    var value = Required(parent, name, JsonValueKind.String).GetString()!;
-    if (string.IsNullOrWhiteSpace(value))
-        throw new InvalidDataException($"Malformed Decisions response: empty {name}");
-    return value;
-}
-
-static long RequiredInteger(JsonElement parent, string name)
-{
-    if (!Required(parent, name, JsonValueKind.Number).TryGetInt64(out var value) || value < 0)
-        throw new InvalidDataException($"Malformed Decisions response: invalid {name}");
-    return value;
-}
-
-static double RequiredNumber(JsonElement parent, string name, bool unit = false)
-{
-    if (!Required(parent, name, JsonValueKind.Number).TryGetDouble(out var value) || !double.IsFinite(value)
-        || (unit && (value < 0 || value > 1)))
-        throw new InvalidDataException($"Malformed Decisions response: invalid {name}");
-    return value;
-}
-
-static string RequiredChoice(JsonElement parent, string name)
-{
-    if (parent.ValueKind != JsonValueKind.Object || !parent.TryGetProperty(name, out var value)
-        || value.ValueKind is not (JsonValueKind.String or JsonValueKind.True or JsonValueKind.False))
-        throw new InvalidDataException($"Malformed Decisions response: invalid {name}");
-    return value.GetRawText();
 }

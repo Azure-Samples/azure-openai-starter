@@ -21,6 +21,20 @@ PHOTO_URL = "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2
 PHOTO_NAMES = ["visible_damage", "category", "severity"]
 
 
+def message_text(value: list) -> str:
+    """Return the text of an input made of a single user message with one text part.
+
+    The typed .NET client always sends a text input as one user message, while the other
+    clients send the plain string. The API accepts both forms of the same input.
+    """
+    if len(value) != 1 or value[0]["role"] != "user":
+        raise AssertionError(f"Expected one user message: {value!r}")
+    content = value[0]["content"]
+    if len(content) != 1 or content[0]["type"] != "input_text":
+        raise AssertionError(f"Expected one input_text part: {content!r}")
+    return content[0]["text"]
+
+
 class DecisionsTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
@@ -64,7 +78,7 @@ class DecisionsTests(unittest.TestCase):
             build([tool("dotnet"), "build", "decisions_example.cs", "--nologo",
                    "--output", str(output)], dotnet)
             cls.samples.append(Sample(
-                ".NET REST", "key", [tool("dotnet"), str(output / "decisions_example.dll")], dotnet,
+                ".NET", "key", [tool("dotnet"), str(output / "decisions_example.dll")], dotnet,
             ))
         ruby = ROOT / "src" / "ruby"
         if "Ruby" in languages:
@@ -178,7 +192,7 @@ class DecisionsTests(unittest.TestCase):
         result.stdout = result.stdout.replace("local-contract-test-key", "[redacted]")
         return result
 
-    def assert_request(self, deployment: str = "gpt-6-luna") -> None:
+    def assert_request(self, deployment: str = "gpt-6-luna", *, user_message_input: bool = False) -> None:
         self.assertEqual(len(self.requests), 1)
         request = self.requests[0]
         self.assertEqual(request["path"], "/openai/v1/decisions")
@@ -187,7 +201,11 @@ class DecisionsTests(unittest.TestCase):
         self.assertIsNone(request["content-encoding"])
         body = request["body"]
         self.assertEqual(body["model"], deployment)
-        self.assertEqual(body["input"], INPUT)
+        # Only the typed .NET client wraps a text input in a user message; every other client sends the string.
+        if user_message_input:
+            self.assertEqual(message_text(body["input"]), INPUT)
+        else:
+            self.assertEqual(body["input"], INPUT)
         self.assertEqual([item["name"] for item in body["questions"]], NAMES)
         self.assertEqual([item["type"] for item in body["questions"]], ["predicate", "choice", "score"])
         self.assertEqual(body["questions"][1]["choices"][0]["value"], "billing")
@@ -215,7 +233,7 @@ class DecisionsTests(unittest.TestCase):
                         self.assertIn(field, result.stdout)
                     for option in ("billing", "technical", "other", "Low", "Medium", "High"):
                         self.assertIn(option, result.stdout)
-                    self.assert_request(deployment)
+                    self.assert_request(deployment, user_message_input=sample.language == ".NET")
 
     def test_python_discovers_dotenv_without_overriding_environment(self) -> None:
         if not any(sample.language == "Python" for sample in self.samples):
@@ -267,7 +285,7 @@ class DecisionsTests(unittest.TestCase):
                 result = self.run_sample(sample)
                 self.assertEqual(result.returncode, 0, result.stdout)
                 self.assertIn("refus", result.stdout.lower())
-                self.assert_request()
+                self.assert_request(user_message_input=sample.language == ".NET")
 
     def test_http_and_malformed_responses_fail(self) -> None:
         for sample in self.samples:
@@ -302,9 +320,9 @@ class DecisionsTests(unittest.TestCase):
                     self.assertIn("AZURE_OPENAI_DEPLOYMENT", result.stdout)
                     self.assertEqual(self.requests, [])
 
-    def test_dotnet_rest_client_is_configured_through_dependency_injection(self) -> None:
+    def test_dotnet_client_is_configured_through_dependency_injection(self) -> None:
         for sample in self.samples:
-            if sample.language != ".NET REST":
+            if sample.language != ".NET":
                 continue
             with self.subTest(language=sample.language):
                 self.requests.clear()
@@ -319,7 +337,7 @@ class DecisionsTests(unittest.TestCase):
                     "Clients__Decisions__Model": "configured-luna",
                 })
                 self.assertEqual(result.returncode, 0, result.stdout)
-                self.assert_request("configured-luna")
+                self.assert_request("configured-luna", user_message_input=True)
                 self.assertIn("Usage:", result.stdout)
 
     def test_python_and_typescript_reject_unsafe_endpoints_before_authentication(self) -> None:

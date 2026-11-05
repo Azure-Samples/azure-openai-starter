@@ -199,12 +199,13 @@ Set an API key only for the explicit fallback; never commit credentials.
 | [Go](./src/go/decisions_example/main.go) | Native OpenAI SDK | `go run .` |
 | [Java](./src/java/src/main/java/com/azure/openai/starter/DecisionsExample.java) | Native OpenAI SDK | `mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsExample` |
 | [Ruby](./src/ruby/decisions_example.rb) | Native OpenAI SDK | `bundle exec ruby decisions_example.rb` |
-| [.NET / C#](./src/dotnet/decisions_example.cs) | `HttpClient` REST fallback | `dotnet run decisions_example.cs` |
+| [.NET / C#](./src/dotnet/decisions_example.cs) | Native OpenAI SDK (typed `DecisionsClient`) | `dotnet run decisions_example.cs` |
 
 **Documentation authors:** [docs/decisions.md](./docs/decisions.md) provides
 Microsoft Learn-style language tabs that include these runnable sources directly.
 It separates current Azure-documented behavior from OpenAI SDK capabilities.
-The .NET fallback is intentional: OpenAI 2.14.0 has no native typed Decisions client.
+The .NET example uses the typed `DecisionsClient` that ships in OpenAI 2.15.0; it is
+experimental in that SDK.
 
 ### 4. Try a real photo, inline or by HTTPS URL
 
@@ -256,8 +257,8 @@ type availability alone is not a service-compatibility test.
 
 ## SDK baseline
 
-These published OpenAI versions include the expanded Decisions GA types, except
-.NET, which uses REST for Decisions. Versions were checked on **2026-10-23**.
+These published OpenAI versions include the expanded Decisions GA types. Versions
+were checked on **2026-10-23**, except .NET, which was checked on **2026-11-05**.
 
 | SDK | Version used as the sample baseline |
 |---|---|
@@ -266,7 +267,7 @@ These published OpenAI versions include the expanded Decisions GA types, except
 | [Go](https://pkg.go.dev/github.com/openai/openai-go/v3@v3.86.0) | `v3.86.0` |
 | [Java](https://central.sonatype.com/artifact/com.openai/openai-java/4.91.0) | `4.91.0` |
 | [Ruby](https://rubygems.org/gems/openai/versions/0.111.0) | `0.111.0` |
-| [.NET](https://www.nuget.org/packages/OpenAI/2.14.0) | `2.14.0` for Responses; REST for Decisions |
+| [.NET](https://www.nuget.org/packages/OpenAI/2.15.0) | `2.15.0` (Responses and the experimental Decisions client) |
 
 The non-.NET release notes call out type changes to message inputs and structured
 instruction parts. Updating an existing application can require source changes.
@@ -291,7 +292,7 @@ python -m unittest discover -s tests -p test_model_support.py -v
 python -m unittest discover -s tests -v
 ```
 
-The contract suite runs real SDK clients and the .NET REST client against a local
+The contract suite runs the real SDK clients against a local
 HTTP server, checks payloads and deployment overrides, and exercises refusals,
 HTTP failures, and malformed responses. It does not prove Azure rollout or quota.
 Live tests require an existing deployment and can incur charges:
