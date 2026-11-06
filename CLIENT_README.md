@@ -1,8 +1,9 @@
 # Client setup and validation
 
 The starter has Responses samples for Python, TypeScript, Go, .NET and Java,
-and Decisions samples for those languages plus Ruby. Every Decisions sample
-classifies the same synthetic ticket with predicate, choice, and score questions.
+and Decisions samples for those languages plus Ruby. Every language has two
+Decisions samples: a text sample that classifies a synthetic support ticket and a
+multimodal sample that assesses a photo, each with predicate, choice, and score questions.
 See the [tabbed Decisions article](./docs/decisions.md) for the code and API contract.
 On Windows, install PowerShell 7 (`pwsh`) to run the azd preprovision validation
 hook. Standalone language samples do not require PowerShell.
@@ -26,27 +27,26 @@ common starter variables. See the [.NET guide](./src/dotnet/README.md).
 | `AZURE_OPENAI_REASONING_EFFORT` | Responses | `medium`; also `low`, `high`, `xhigh`, `max` |
 | `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | Responses | `16384`; integer 16 through 128000 |
 | `AZURE_OPENAI_DEPLOYMENT` | Decisions | Your Azure deployment name; defaults to `gpt-6-luna` |
+| `AZURE_TENANT_ID` | Keyless examples | Optional tenant that owns the resource; see below |
 
 The Responses and Decisions deployment settings are separate. A Sol deployment cannot serve a Decisions
 request. `model` always identifies your Azure deployment, not an arbitrary model
 selected by the SDK. An omitted Decisions API key selects passwordless
-authentication (Ruby obtains a token from the Azure CLI). For local development,
-run `az login` and ensure the calling identity has the **Cognitive Services User**
-role on the resource. Role assignments can take time to propagate.
+authentication. For local development, run `azd auth login` and ensure the
+calling identity has the **Cognitive Services User** role on the resource
+(azd assigns it to the deploying user). Role assignments can take time to propagate.
 
-If your development login has access to multiple tenants, set `AZURE_TENANT_ID`
-to the tenant that owns the resource. The TypeScript keyless examples pass this
-optional setting to `DefaultAzureCredential`, including its developer CLI
-credential, rather than relying on your CLI's current tenant.
-For Python with an azd login, explicitly set
-`AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential` as well as `AZURE_TENANT_ID`.
-The Python keyless examples then construct that official credential with the
-resource tenant and keep the bearer-token provider's automatic refresh.
-With no explicit credential selection, Python still uses `DefaultAzureCredential`.
-The Go keyless examples also forward `AZURE_TENANT_ID` to their default
-credential chain. Ruby normally uses `az`; set
-`AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential` to use an existing `azd`
-login instead. Ruby forwards `AZURE_TENANT_ID` to the selected CLI.
+The Python, .NET and Ruby keyless examples use your `azd auth login` session through
+the Azure Developer CLI credential. The Python Entra Responses example does too.
+TypeScript, Go and Java use `DefaultAzureCredential`, so an `az login` session or a
+managed identity also works. For production, use a credential made for that
+environment, such as a managed identity.
+
+If your login has access to multiple tenants, set `AZURE_TENANT_ID` to the tenant
+that owns the resource; `azd env get-value AZURE_TENANT_ID` returns it. The Python,
+TypeScript, Go, .NET and Ruby keyless examples pass it to their credential, so they
+request tokens for that tenant instead of your CLI's current one. Without it they use
+the default tenant.
 
 Every Decisions sample uses the configuration in [.env.example](./.env.example).
 Export those values into your shell; loading a `.env` file is not automatic in
@@ -60,14 +60,14 @@ Remove-Item Env:AZURE_OPENAI_API_KEY -ErrorAction SilentlyContinue
 ```
 
 When provisioning with azd, obtain these values with `azd env get-value
-AZURE_OPENAI_ENDPOINT` and `azd env get-value AZURE_OPENAI_DEPLOYMENT`.
+AZURE_OPENAI_ENDPOINT` and `azd env get-value AZURE_OPENAI_DEPLOYMENT`, plus
+`azd env get-value AZURE_TENANT_ID` for the optional tenant.
 For the explicit API-key fallback, set `AZURE_OPENAI_API_KEY`; otherwise leave it unset.
 
-Do not use real credentials against a local stub or an untrusted endpoint.
-Decisions examples require an HTTPS resource root URL without user information,
-query strings, fragments or deployment paths. Plain HTTP is allowed only for
-loopback addresses with an explicitly supplied API key, for offline tests using
-synthetic credentials. Passwordless authentication always requires HTTPS.
+The Decisions examples send your credentials to whatever endpoint you configure.
+Use only your own resource's HTTPS endpoint, and never point real credentials at a
+local stub or an endpoint you do not trust. The offline tests send synthetic
+credentials to a local HTTP server.
 
 ## Python
 
@@ -80,11 +80,12 @@ python -m pip install -r requirements.txt
 python responses_example_entra.py
 python responses_example.py
 python decisions_example.py
+python decisions_multimodal_example.py
 ```
 
 The requirements pin OpenAI to the checked GA release 3.37.0. Keyless examples
-use Azure Identity. The Decisions example automatically finds an optional `.env`
-file beside the script or in its parent directories. In this example, existing
+use Azure Identity. The Decisions examples automatically find an optional `.env`
+file beside the script or in its parent directories. In these examples, existing
 environment variables take precedence over values in the file.
 
 ## TypeScript / JavaScript
@@ -97,6 +98,7 @@ npm run build
 npm start
 npx tsx responses_example_entra.ts
 npm run decisions
+npm run decisions:multimodal
 ```
 
 The examples are strict TypeScript. After compilation, run the same samples as
@@ -111,7 +113,8 @@ cd src/go/responses_example
 go run .
 ```
 
-Or choose `src/go/responses_example_entra` or `src/go/decisions_example`.
+Or choose `src/go/responses_example_entra`, `src/go/decisions_example` or
+`src/go/decisions_multimodal_example`.
 Restore each module with `go mod download`. The Decisions instructions field
 uses the SDK's string-or-content union rather than assigning a string directly.
 
@@ -124,11 +127,13 @@ mvn --batch-mode compile
 mvn exec:java -Dexec.mainClass=com.azure.openai.starter.ResponsesExample
 mvn exec:java -Dexec.mainClass=com.azure.openai.starter.ResponsesExampleEntra
 mvn exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsExample
+mvn exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsMultimodalExample
 ```
 
 Dependencies are declared in `pom.xml`; the examples need no sibling Java helper
 classes. The Decisions SDK uses role-specific message and instruction union
-types when advanced inputs are needed; the basic example uses text input.
+types when advanced inputs are needed; the text example uses a plain text input
+and the multimodal example sends a user message with a text part and an image part.
 
 ## .NET / C#
 
@@ -139,6 +144,7 @@ there is no application project file. From `src/dotnet`:
 dotnet run responses_example.cs
 dotnet run responses_example_entra.cs
 dotnet run decisions_example.cs
+dotnet run decisions_multimodal_example.cs
 ```
 
 Responses and Decisions both use the OpenAI 2.15.0 SDK. Decisions uses its typed,
@@ -147,7 +153,7 @@ API-key or Microsoft Entra authentication. See the [.NET guide](./src/dotnet/REA
 All .NET examples register their clients through the Generic Host and dependency
 injection. OpenAI's `AddResponsesClient` and `AddDecisionsClient` bind each client's
 options and credentials. The Responses examples require native client configuration;
-the Decisions example still supports the starter environment variables.
+the Decisions examples still support the starter environment variables.
 Use `Clients__Responses__...` or `Clients__Decisions__...` settings, or the
 optional [appsettings example](./src/dotnet/appsettings.example.json), to override
 client options and credential sources without editing code. No language sample
@@ -161,11 +167,12 @@ Requires Ruby 3.3 or newer and Bundler. From `src/ruby`:
 ```bash
 bundle install
 bundle exec ruby decisions_example.rb
+bundle exec ruby decisions_multimodal_example.rb
 ```
 
 The native OpenAI gem is pinned to 0.111.0. If `AZURE_OPENAI_API_KEY` is absent,
-the sample runs `az account get-access-token` and uses the returned bearer token
-for its single request. It never prints the token. This is a developer workflow,
+the samples run `azd auth token` and use the returned bearer token
+for their single request. They never print the token. This is a developer workflow,
 not a managed-identity implementation for a long-running service.
 
 ## Region/model discovery
@@ -196,19 +203,20 @@ for every Decisions feature. The script labels those limits explicitly.
 
 ## Real-photo scenarios
 
-All six Decisions programs accept `--image PATH_OR_HTTPS_URL` after the usual
-command. Local PNG, JPEG, WebP or GIF files become inline base64 data URLs.
+The multimodal Decisions programs take an optional image after the usual command: an
+HTTPS URL or the path to an image file. With no argument they send a public-domain NASA
+photo by HTTPS URL. Local PNG, JPEG, WebP or GIF files become inline base64 data URLs.
 HTTPS URLs are passed to Azure, which must be able to fetch the image without
-your browser session. The sample never downloads an arbitrary URL itself.
+your browser session. The samples never download an arbitrary URL themselves.
 
 | Language | Inline photo command from the language's sample directory |
 |---|---|
-| Python | `python decisions_example.py --image ../../images/decisions-photo.png` |
-| TypeScript | `npm run decisions -- --image ../../images/decisions-photo.png` |
-| Go (`src/go/decisions_example`) | `go run . --image ../../../images/decisions-photo.png` |
-| Java | `mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsExample -Dexec.args="--image ../../images/decisions-photo.png"` |
-| .NET | `dotnet run decisions_example.cs -- --image ../../images/decisions-photo.png` |
-| Ruby | `bundle exec ruby decisions_example.rb --image ../../images/decisions-photo.png` |
+| Python | `python decisions_multimodal_example.py ../../images/decisions-photo.png` |
+| TypeScript | `npm run decisions:multimodal -- ../../images/decisions-photo.png` |
+| Go (`src/go/decisions_multimodal_example`) | `go run . ../../../images/decisions-photo.png` |
+| Java | `mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsMultimodalExample -Dexec.args="../../images/decisions-photo.png"` |
+| .NET | `dotnet run decisions_multimodal_example.cs -- ../../images/decisions-photo.png` |
+| Ruby | `bundle exec ruby decisions_multimodal_example.rb ../../images/decisions-photo.png` |
 
 To demonstrate hosted input, replace the path with:
 

@@ -12,7 +12,9 @@ copy the referenced sources or update the include paths to that repository's
 sample location. GitHub displays the tab headings and source links rather than
 the rendered Microsoft Learn tabs.
 
-The Decisions API returns typed answers instead of generated prose. This example
+The Decisions API returns typed answers instead of generated prose. Every language
+has two examples: a text example that routes a support ticket, and a multimodal
+example that [asks about a photo](#evaluate-a-photo). The text example
 evaluates a synthetic billing ticket with three independent questions:
 
 | Question | Type | Result |
@@ -33,11 +35,11 @@ treating it as a negative predicate answer or as an HTTP transport failure.
 - `AZURE_OPENAI_DEPLOYMENT` set to your Luna deployment name;
   the samples default to `gpt-6-luna`.
 - Passwordless access with an identity assigned Cognitive Services User.
-  Leave `AZURE_OPENAI_API_KEY` unset for this default. Ruby uses your Azure CLI
-  session, or your `azd` login when `AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential`.
-  The other languages use Azure Identity; see the client guide for optional
-  tenant and explicit developer-credential selection.
-  Setting `AZURE_OPENAI_API_KEY` explicitly selects the API-key fallback.
+  Leave `AZURE_OPENAI_API_KEY` unset for this default. Python, .NET and Ruby use
+  your `azd auth login` session; TypeScript, Go and Java use `DefaultAzureCredential`.
+  Set `AZURE_TENANT_ID` to the tenant that owns the resource if your login spans
+  several tenants; see the client guide. Setting `AZURE_OPENAI_API_KEY` explicitly
+  selects the API-key fallback.
 - The [runtime and dependencies for your language](../CLIENT_README.md).
 
 SDK baselines checked **2026-10-23**:
@@ -56,16 +58,16 @@ text example. The Learn minimums, Python 3.26.0 and JavaScript 7.30.0, cover bas
 examples. The GA-type updates introduce source-level union/message changes.
 The SDK base URL is `https://{resource}.openai.azure.com/openai/v1/`; the operation
 is `/decisions`. The common [.env example](../.env.example) uses the resource root,
-which the programs validate before appending the v1 path.
+to which the programs append the v1 path.
 
 Azure documentation currently describes up to **400 questions** and data URLs
 or publicly accessible **HTTPS image URLs**. It excludes **East US 2** from the
-Decisions rollout. This basic text sample does not depend on JSON input,
-multimodal question instructions, explicit caching controls, tool history or
+Decisions rollout. These examples do not depend on JSON input, images in
+question instructions, explicit caching controls, tool history or
 GPT-Live. Those types being available in an OpenAI SDK is not certification of
 the corresponding Azure service feature.
 
-## Send a decision request
+## Send a text decision request
 
 # [Python](#tab/python)
 
@@ -131,30 +133,77 @@ latency, quality, regional availability or billing.
 Use a separate deployment name for Responses and Decisions. Do not send
 Responses-only parameters such as `reasoning` or `max_output_tokens` to Decisions.
 
-## Evaluate a real photo
+## Evaluate a photo
 
-The same program accepts `--image PATH_OR_HTTPS_URL` in every language. A file is
-encoded as an inline base64 data URL; a public HTTPS URL is passed to Azure.
-The three questions then evaluate visible damage, classify the main object with
-an `other` fallback, and score damage severity. Batch related questions into one
-request and reuse the client for later batches instead of reconnecting per question.
+The multimodal example sends text and an image in one user message. The three
+questions evaluate visible damage, classify the main object with an `other`
+fallback, and score damage severity. Batch related questions into one request and
+reuse the client for later batches instead of reconnecting per question.
+
+# [Python](#tab/python)
+
+From `src/python`, run `python decisions_multimodal_example.py`.
+
+[!code-python[Decisions with an image using the native Python SDK](../src/python/decisions_multimodal_example.py)]
+
+# [JavaScript / TypeScript](#tab/typescript)
+
+From `src/typescript`, run `npm run decisions:multimodal`. To run JavaScript, compile with
+`npm run build`, then run `node dist/decisions_multimodal_example.js`.
+
+[!code-typescript[Decisions with an image using the native TypeScript SDK](../src/typescript/decisions_multimodal_example.ts)]
+
+# [Go](#tab/go)
+
+From `src/go/decisions_multimodal_example`, run `go run .`.
+
+[!code-go[Decisions with an image using the native Go SDK](../src/go/decisions_multimodal_example/main.go)]
+
+# [Java](#tab/java)
+
+From `src/java`, run
+`mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsMultimodalExample`.
+
+[!code-java[Decisions with an image using the native Java SDK](../src/java/src/main/java/com/azure/openai/starter/DecisionsMultimodalExample.java)]
+
+# [Ruby](#tab/ruby)
+
+From `src/ruby`, run `bundle install`, then
+`bundle exec ruby decisions_multimodal_example.rb`.
+
+[!code-ruby[Decisions with an image using the native Ruby SDK](../src/ruby/decisions_multimodal_example.rb)]
+
+# [C#](#tab/csharp)
+
+From `src/dotnet`, run `dotnet run decisions_multimodal_example.cs` with the .NET 10 SDK.
+The image goes into a `DecisionsInputImageContentPart` beside the text part.
+
+[!code-csharp[Decisions with an image using the native .NET SDK](../src/dotnet/decisions_multimodal_example.cs)]
+
+---
+
+With no argument, the example sends a public-domain NASA photo by HTTPS URL, which
+Azure fetches. Pass your own public HTTPS image URL or the path to an image file
+instead; a file is encoded as an inline base64 data URL.
 
 The [client guide](../CLIENT_README.md#real-photo-scenarios) has the exact command
 for each runtime. For example, from the repository root:
 
 ```bash
-python src/python/decisions_example.py --image images/decisions-photo.png
-python src/python/decisions_example.py --image https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/astronaut.png
+python src/python/decisions_multimodal_example.py
+python src/python/decisions_multimodal_example.py images/decisions-photo.png
+python src/python/decisions_multimodal_example.py https://example.com/your-photo.png
 ```
 
 The included [real NASA photo](../images/decisions-photo.png) is a public-domain
 transport fixture; [attribution](../images/decisions-photo.md) records the source.
 It is not a damaged-product benchmark. Supported image formats are PNG, JPEG,
 WebP and GIF; the service allows at most 128 images and 32 MB combined per request.
-These programs send a single image and check its file type and size before auth.
+These programs send a single image.
 
 Decisions returns one non-streaming response. The samples use uncompressed JSON,
-not compressed request bodies, and handle generic non-success HTTP responses.
+not compressed request bodies. A non-success HTTP response stops an example with
+the service's error message.
 Use a fallback choice/probability threshold for ambiguous input rather than
 trying to provoke a safety refusal.
 

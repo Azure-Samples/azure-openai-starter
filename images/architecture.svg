@@ -85,7 +85,7 @@
       <rect x="18" y="18" width="46" height="46" rx="10" fill="#FBEAEA" />
       <text x="41" y="49" text-anchor="middle" font-size="22" font-weight="700" fill="#A20B13">R</text>
       <text x="82" y="34" font-size="22" font-weight="600" fill="#0A2540">Ruby</text>
-      <text x="82" y="59" font-size="15" fill="#5A6B7C">Decisions SDK · Azure CLI token</text>
+      <text x="82" y="59" font-size="15" fill="#5A6B7C">Decisions SDK · azd token</text>
     </g>
     <text x="190" y="542" text-anchor="middle" font-size="14" fill="#5A6B7C">Classify · route · score · handle refusals</text>
   </g>

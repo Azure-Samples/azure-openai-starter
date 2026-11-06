@@ -12,13 +12,16 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class DocumentationTests(unittest.TestCase):
-    def test_decisions_tabs_include_the_six_real_sample_files(self) -> None:
+    def test_decisions_tabs_include_the_real_text_and_multimodal_sample_files(self) -> None:
         article = ROOT / "docs" / "decisions.md"
         text = article.read_text(encoding="utf-8")
+        languages = ["python", "typescript", "go", "java", "ruby", "csharp"]
         tabs = re.findall(r"^# \[.+\]\(#tab/([a-z]+)\)$", text, re.MULTILINE)
-        self.assertEqual(tabs, ["python", "typescript", "go", "java", "ruby", "csharp"])
+        self.assertEqual(tabs, languages * 2)
         includes = re.findall(r"\[!code-[a-z]+\[[^\]]*\]\(([^)]+)\)\]", text)
-        self.assertEqual(len(includes), 6)
+        self.assertEqual(len(includes), 12)
+        # The text examples come first, then the multimodal examples, in the same language order.
+        self.assertEqual(["multimodal" in relative.lower() for relative in includes], [False] * 6 + [True] * 6)
         for relative in includes:
             with self.subTest(source=relative):
                 self.assertTrue((article.parent / relative).resolve().is_file())
@@ -59,12 +62,18 @@ class DocumentationTests(unittest.TestCase):
             "src/go/decisions_example/main.go",
             "src/java/src/main/java/com/azure/openai/starter/DecisionsExample.java",
             "src/dotnet/decisions_example.cs", "src/ruby/decisions_example.rb",
+            "src/python/decisions_multimodal_example.py", "src/typescript/decisions_multimodal_example.ts",
+            "src/go/decisions_multimodal_example/main.go",
+            "src/java/src/main/java/com/azure/openai/starter/DecisionsMultimodalExample.java",
+            "src/dotnet/decisions_multimodal_example.cs", "src/ruby/decisions_multimodal_example.rb",
         ):
             with self.subTest(source=source):
                 text = (ROOT / source).read_text()
                 self.assertIn("AZURE_OPENAI_DEPLOYMENT", text)
                 self.assertNotIn("AZURE_OPENAI_DECISIONS_DEPLOYMENT_NAME", text)
-                self.assertIn("--image", text)
+                # Only the multimodal examples take an image, and they default to the documented photo.
+                self.assertEqual("v0.25.2/skimage/data/astronaut.png" in text, "multimodal" in source.lower())
+                self.assertNotIn("--image", text)
 
     def test_dotnet_configuration_example_contains_no_secret_and_matches_sections(self) -> None:
         settings = json.loads((ROOT / "src" / "dotnet" / "appsettings.example.json").read_text())
@@ -118,29 +127,33 @@ class DocumentationTests(unittest.TestCase):
             self.assertNotIn('builder.Configuration["AZURE_OPENAI_', text)
             self.assertNotIn('settings["Credential:', text)
 
-    def test_dotnet_readme_decisions_snippet_matches_the_decisions_sample(self) -> None:
+    def test_dotnet_readme_decisions_snippet_matches_both_decisions_samples(self) -> None:
         readme = (ROOT / "src" / "dotnet" / "README.md").read_text(encoding="utf-8")
         blocks = [block for block in re.findall(r"```csharp\n(.*?)```", readme, re.DOTALL)
                   if "AddDecisionsClient" in block]
         self.assertEqual(len(blocks), 1, "Expected one registration snippet for the Decisions client")
         snippet = [line.strip() for line in blocks[0].splitlines() if line.strip()]
         self.assertGreater(len(snippet), 1)
-        text = (ROOT / "src" / "dotnet" / "decisions_example.cs").read_text(encoding="utf-8")
-        source = [line.strip() for line in text.splitlines()]
-        position = 0
-        for line in snippet:
-            self.assertIn(line, source[position:], f"decisions_example.cs no longer matches README line: {line}")
-            position = source.index(line, position) + 1
+        for filename in ("decisions_example.cs", "decisions_multimodal_example.cs"):
+            with self.subTest(source=filename):
+                text = (ROOT / "src" / "dotnet" / filename).read_text(encoding="utf-8")
+                source = [line.strip() for line in text.splitlines()]
+                position = 0
+                for line in snippet:
+                    self.assertIn(line, source[position:], f"{filename} no longer matches README line: {line}")
+                    position = source.index(line, position) + 1
 
     def test_dotnet_decisions_uses_the_typed_client_without_protocol_methods(self) -> None:
-        text = (ROOT / "src" / "dotnet" / "decisions_example.cs").read_text(encoding="utf-8")
-        self.assertIn('builder.AddDecisionsClient("Clients:Decisions")', text)
-        self.assertIn("decisionsClient.CreateDecisionAsync(options)", text)
-        # Comments may mention these APIs to explain what the sample avoids; only code is checked.
-        code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//"))
-        for forbidden in ("BinaryContent", "HttpClient", "HttpRequestMessage", "ModelReaderWriter", "JsonSerializer"):
-            with self.subTest(forbidden=forbidden):
-                self.assertNotIn(forbidden, code)
+        for filename in ("decisions_example.cs", "decisions_multimodal_example.cs"):
+            with self.subTest(source=filename):
+                text = (ROOT / "src" / "dotnet" / filename).read_text(encoding="utf-8")
+                self.assertIn('builder.AddDecisionsClient("Clients:Decisions")', text)
+                self.assertIn("decisionsClient.CreateDecisionAsync(options)", text)
+                # Comments may mention these APIs to explain what the sample avoids; only code is checked.
+                code = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("//"))
+                for forbidden in ("BinaryContent", "HttpClient", "HttpRequestMessage", "ModelReaderWriter",
+                                  "JsonSerializer"):
+                    self.assertNotIn(forbidden, code)
 
     def test_dotnet_samples_pin_the_openai_version_documented_in_the_readme(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")

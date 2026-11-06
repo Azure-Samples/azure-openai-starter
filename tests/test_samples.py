@@ -245,6 +245,12 @@ class SampleTests(unittest.TestCase):
         cli = cls.local_cli / "az"
         cli.write_text(f"#!/bin/sh\nprintf '%s\\n' '{token}'\n", encoding="utf-8")
         cli.chmod(0o755)
+        # The Python Entra example uses the Azure Developer CLI credential.
+        azd_token = json.dumps({"token": LOCAL_TOKEN, "expiresOn": "2099-01-01T00:00:00Z"})
+        (cls.local_cli / "azd.cmd").write_text(f"@echo off\necho {azd_token}\n", encoding="utf-8")
+        azd = cls.local_cli / "azd"
+        azd.write_text(f"#!/bin/sh\nprintf '%s\\n' '{azd_token}'\n", encoding="utf-8")
+        azd.chmod(0o755)
         cls.state = StubState()
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), handler_for(cls.state))
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)

@@ -86,10 +86,11 @@ is tracked; real `appsettings*.json` files are ignored.
 
 ## Decisions: use the typed `DecisionsClient`
 
-OpenAI 2.15.0 adds an experimental typed `DecisionsClient`. The Decisions example
-uses its strongly typed `CreateDecisionAsync(DecisionCreationOptions)` method; it
-does not call the raw `BinaryContent` protocol method or build JSON by hand. It is
-registered the same way as the Responses client:
+OpenAI 2.15.0 adds an experimental typed `DecisionsClient`. The two Decisions examples
+(a text example and a multimodal example) use its strongly typed
+`CreateDecisionAsync(DecisionCreationOptions)` method; they do not call the raw
+`BinaryContent` protocol method or build JSON by hand. The client is registered the
+same way as the Responses client:
 
 ```csharp
 var builder = Host.CreateApplicationBuilder();
@@ -100,8 +101,9 @@ var decisionsClient = host.Services.GetRequiredService<DecisionsClient>();
 ```
 
 The request is built from typed models: a `DecisionsUserMessageItem` holds the
-input, and a `DecisionsPredicateQuestion`, `DecisionsChoiceQuestion` and
-`DecisionsScoreQuestion` hold the three batched questions. The response is a
+input (a `DecisionsInputTextContentPart`, plus a `DecisionsInputImageContentPart` in
+the multimodal example), and a `DecisionsPredicateQuestion`, `DecisionsChoiceQuestion`
+and `DecisionsScoreQuestion` hold the three batched questions. The response is a
 `DecisionResource`; pattern-match each answer as a `DecisionsPredicateAnswer`,
 `DecisionsChoiceAnswer`, `DecisionsScoreAnswer` or `DecisionsRefusalAnswer` so a
 refusal is handled explicitly instead of cast away.
@@ -110,32 +112,34 @@ A choice is a string or a boolean. `DecisionsChoiceValue` has no `ToString()` or
 equality, so read its `StringValue` or `BooleanValue` instead of comparing or
 printing the wrapper.
 
-The common starter environment variables remain supported by the Decisions example
+The common starter environment variables remain supported by the Decisions examples
 and are translated into the `Clients:Decisions` configuration before the client is
-registered:
+registered. Without an API key they use the Azure Developer CLI credential
+(`azd auth login`), for the tenant in `AZURE_TENANT_ID` when it is set:
 
 ```powershell
 $env:AZURE_OPENAI_ENDPOINT = "https://YOUR-RESOURCE.openai.azure.com/"
 $env:AZURE_OPENAI_DEPLOYMENT = "YOUR-LUNA-DEPLOYMENT"
 dotnet run decisions_example.cs
-dotnet run decisions_example.cs -- --image ..\..\images\decisions-photo.png
+dotnet run decisions_multimodal_example.cs
+dotnet run decisions_multimodal_example.cs -- ..\..\images\decisions-photo.png
 ```
 
 Alternatively configure `Clients:Decisions` using the included JSON example or
 `Clients__Decisions__...` environment keys. `Options:Endpoint` is the full v1 base
-URL, `Model` is the Luna deployment name, and `Credential` selects authentication.
+URL, `Model` is the Luna deployment name, and `Credential` selects authentication,
+for example `AzureCliCredential` or `ManagedIdentityCredential`.
 `Options:NetworkTimeout` configures the SDK pipeline's network timeout. An explicit
-`Clients:Decisions` setting always wins over the starter variables. The example also
-requires an HTTPS endpoint (HTTP is allowed only for a loopback test server with an
-API key).
+`Clients:Decisions` setting always wins over the starter variables.
 
-The optional `--image PATH_OR_HTTPS_URL` accepts a real PNG, JPEG, WebP or GIF
-photo of at most 32 MiB, encoded inline, or a publicly accessible HTTPS URL.
-Validation precedes credentials; no client-side URL download occurs. The sample
-batches three questions, prints named answers/probabilities/usage, and fails
-explicitly on HTTP errors and on responses it cannot use: no answers, no usage, an
-unknown answer kind, or a choice without a value. The typed client is more lenient
-than hand-written JSON parsing, so it does not check every field of every answer.
+The multimodal example takes an optional image after `--`: the path to a PNG, JPEG,
+WebP or GIF file, encoded inline, or a publicly accessible HTTPS URL. With no
+argument it sends a public-domain NASA photo by HTTPS URL. No client-side URL download
+occurs. Both examples batch three questions and print named answers, probabilities
+and usage. An HTTP error stops the example with the service's error message.
+Empty answers, missing usage, unknown answer types and choices without a value
+also fail explicitly. The endpoint must be an absolute URL so invalid configuration
+cannot silently redirect the SDK to its default OpenAI endpoint.
 
 ## Packages and validation
 

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "tsx responses_example.ts",
     "decisions": "tsx decisions_example.ts",
+    "decisions:multimodal": "tsx decisions_multimodal_example.ts",
     "build": "tsc",
     "dev": "tsx watch responses_example.ts"
   },

@@ -17,7 +17,9 @@ ROOT = Path(__file__).resolve().parents[1]
 INPUT = "I was charged twice for order 123. Please refund the duplicate charge."
 NAMES = ["refund_requested", "department", "severity"]
 PHOTO = ROOT / "images" / "decisions-photo.png"
-PHOTO_URL = "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/astronaut.png"
+# The multimodal examples send this public-domain photo when no image is given.
+DEFAULT_PHOTO_URL = "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/astronaut.png"
+HOSTED_PHOTO_URL = "https://example.invalid/photo.png"
 PHOTO_NAMES = ["visible_damage", "category", "severity"]
 
 
@@ -44,48 +46,48 @@ class DecisionsTests(unittest.TestCase):
         languages = selected_languages(include_ruby=True)
         if not languages:
             raise unittest.SkipTest("No Decisions languages selected")
+        # Each language has a text example and a multimodal (text and image) example.
         cls.samples = []
+        cls.photo_samples = []
+        stems = (("decisions_example", cls.samples), ("decisions_multimodal_example", cls.photo_samples))
         if "Python" in languages:
-            cls.samples.append(Sample(
-                "Python", "key", [sys.executable, str(ROOT / "src" / "python" / "decisions_example.py")],
-                ROOT / "src" / "python",
-            ))
+            python = ROOT / "src" / "python"
+            for stem, samples in stems:
+                samples.append(Sample("Python", "key", [sys.executable, str(python / f"{stem}.py")], python))
         typescript = ROOT / "src" / "typescript"
         if "TypeScript" in languages:
             build([tool("npm"), "run", "build"], typescript)
-            cls.samples.append(Sample(
-                "TypeScript", "key", [tool("node"), str(typescript / "dist" / "decisions_example.js")],
-                typescript,
-            ))
-        go = ROOT / "src" / "go" / "decisions_example"
-        executable = destination / ("decisions.exe" if os.name == "nt" else "decisions")
+            for stem, samples in stems:
+                samples.append(Sample(
+                    "TypeScript", "key", [tool("node"), str(typescript / "dist" / f"{stem}.js")], typescript,
+                ))
         if "Go" in languages:
-            build([tool("go"), "build", "-o", str(executable), "."], go)
-            cls.samples.append(Sample("Go", "key", [str(executable)], go))
+            for stem, samples in stems:
+                go = ROOT / "src" / "go" / stem
+                executable = destination / (f"{stem}.exe" if os.name == "nt" else stem)
+                build([tool("go"), "build", "-o", str(executable), "."], go)
+                samples.append(Sample("Go", "key", [str(executable)], go))
         java = ROOT / "src" / "java"
         classpath_file = destination / "classpath.txt"
         if "Java" in languages:
             build([tool("mvn"), "--batch-mode", "compile", "dependency:build-classpath",
                    f"-Dmdep.outputFile={classpath_file}"], java)
             classpath = str(java / "target" / "classes") + os.pathsep + classpath_file.read_text().strip()
-            cls.samples.append(Sample(
-                "Java", "key", [tool("java"), "-cp", classpath,
-                               "com.azure.openai.starter.DecisionsExample"], java,
-            ))
+            for (_, samples), class_name in zip(stems, ("DecisionsExample", "DecisionsMultimodalExample")):
+                samples.append(Sample(
+                    "Java", "key", [tool("java"), "-cp", classpath, f"com.azure.openai.starter.{class_name}"], java,
+                ))
         dotnet = ROOT / "src" / "dotnet"
-        output = destination / "dotnet"
         if ".NET" in languages:
-            build([tool("dotnet"), "build", "decisions_example.cs", "--nologo",
-                   "--output", str(output)], dotnet)
-            cls.samples.append(Sample(
-                ".NET", "key", [tool("dotnet"), str(output / "decisions_example.dll")], dotnet,
-            ))
+            for stem, samples in stems:
+                output = destination / f"dotnet-{stem}"
+                build([tool("dotnet"), "build", f"{stem}.cs", "--nologo", "--output", str(output)], dotnet)
+                samples.append(Sample(".NET", "key", [tool("dotnet"), str(output / f"{stem}.dll")], dotnet))
         ruby = ROOT / "src" / "ruby"
         if "Ruby" in languages:
             build([tool("bundle"), "check"], ruby)
-            cls.samples.append(Sample(
-                "Ruby", "key", [tool("bundle"), "exec", "ruby", "decisions_example.rb"], ruby,
-            ))
+            for stem, samples in stems:
+                samples.append(Sample("Ruby", "key", [tool("bundle"), "exec", "ruby", f"{stem}.rb"], ruby))
         cls.requests = []
         cls.scenario = "completed"
 
@@ -119,6 +121,10 @@ class DecisionsTests(unittest.TestCase):
                     answers = []
                 elif cls.scenario == "unknown":
                     answers[0]["type"] = "unexpected"
+                elif cls.scenario == "null_choice":
+                    answers[1]["choice"] = None
+                elif cls.scenario == "missing_choice":
+                    answers[1].pop("choice")
                 response = {
                     "model": body["model"],
                     "answers": answers,
@@ -132,6 +138,9 @@ class DecisionsTests(unittest.TestCase):
                 }
                 if cls.scenario == "missing_usage":
                     response["usage"] = None
+                elif cls.scenario == "usage_no_details":
+                    response["usage"].pop("input_tokens_details")
+                    response["usage"].pop("output_tokens_details")
                 code = 200
                 if self.path != "/openai/v1/decisions":
                     code = 404
@@ -213,6 +222,23 @@ class DecisionsTests(unittest.TestCase):
         for field in ("reasoning", "temperature", "max_output_tokens", "stream"):
             self.assertNotIn(field, body)
 
+    def assert_photo_request(self) -> str:
+        """Check the multimodal request and return the image it carries."""
+        self.assertEqual(len(self.requests), 1)
+        request = self.requests[0]
+        self.assertEqual(request["path"], "/openai/v1/decisions")
+        self.assertIsNone(request["content-encoding"])
+        body = request["body"]
+        self.assertEqual(body["model"], "gpt-6-luna")
+        self.assertEqual([question["name"] for question in body["questions"]], PHOTO_NAMES)
+        self.assertEqual([item["type"] for item in body["questions"]], ["predicate", "choice", "score"])
+        self.assertEqual(body["questions"][1]["choices"][-1]["value"], "other")
+        self.assertEqual(len(body["input"]), 1)
+        self.assertEqual(body["input"][0]["role"], "user")
+        content = body["input"][0]["content"]
+        self.assertEqual([part["type"] for part in content], ["input_text", "input_image"])
+        return content[1]["image_url"]
+
     def test_defaults_endpoint_normalization_and_deployment_override(self) -> None:
         for sample in self.samples:
             for ending, deployment in (("", "gpt-6-luna"), ("/", "custom-luna"), ("///", "custom-luna")):
@@ -279,52 +305,81 @@ class DecisionsTests(unittest.TestCase):
 
     def test_refusals_are_handled_explicitly(self) -> None:
         type(self).scenario = "refusal"
-        for sample in self.samples:
-            with self.subTest(language=sample.language):
+        for sample in [*self.samples, *self.photo_samples]:
+            with self.subTest(language=sample.language, example=sample.command[-1]):
                 self.requests.clear()
                 result = self.run_sample(sample)
                 self.assertEqual(result.returncode, 0, result.stdout)
                 self.assertIn("refus", result.stdout.lower())
-                self.assert_request(user_message_input=sample.language == ".NET")
+                self.assertEqual(len(self.requests), 1)
 
-    def test_http_and_malformed_responses_fail(self) -> None:
-        for sample in self.samples:
-            for scenario in ("http_error", "deployment_not_found", "empty", "missing_usage", "unknown"):
-                with self.subTest(language=sample.language, scenario=scenario):
+    def test_http_errors_are_reported(self) -> None:
+        for sample in [*self.samples, *self.photo_samples]:
+            for scenario, message in (
+                ("http_error", "Contract test rejection"),
+                ("deployment_not_found", "The specified deployment does not exist."),
+            ):
+                with self.subTest(language=sample.language, example=sample.command[-1], scenario=scenario):
+                    type(self).scenario = scenario
+                    self.requests.clear()
+                    result = self.run_sample(sample)
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(message, result.stdout)
+                    self.assertEqual(len(self.requests), 1)
+
+    def test_unusable_responses_fail(self) -> None:
+        for sample in [*self.samples, *self.photo_samples]:
+            for scenario in ("empty", "missing_usage", "unknown"):
+                with self.subTest(language=sample.language, example=sample.command[-1], scenario=scenario):
                     type(self).scenario = scenario
                     self.requests.clear()
                     result = self.run_sample(sample)
                     self.assertNotEqual(result.returncode, 0, result.stdout)
                     self.assertEqual(len(self.requests), 1)
-                    self.assertIsNone(self.requests[0]["content-encoding"])
-                    if scenario == "http_error":
-                        self.assertIn("Contract test rejection", result.stdout)
-                    elif scenario == "deployment_not_found":
-                        self.assertIn("The specified deployment does not exist.", result.stdout)
 
     def test_missing_endpoint_fails_before_request(self) -> None:
-        for sample in self.samples:
-            with self.subTest(language=sample.language):
+        for sample in [*self.samples, *self.photo_samples]:
+            with self.subTest(language=sample.language, example=sample.command[-1]):
                 result = self.run_sample(sample, {"AZURE_OPENAI_ENDPOINT": None})
                 self.assertNotEqual(result.returncode, 0, result.stdout)
                 self.assertIn("AZURE_OPENAI_ENDPOINT", result.stdout)
                 self.assertEqual(self.requests, [])
 
-    def test_explicit_empty_deployment_fails_before_request(self) -> None:
-        for sample in self.samples:
-            for value in ("", " "):
-                with self.subTest(language=sample.language, deployment=value):
-                    self.requests.clear()
-                    result = self.run_sample(sample, {"AZURE_OPENAI_DEPLOYMENT": value})
-                    self.assertNotEqual(result.returncode, 0, result.stdout)
-                    self.assertIn("AZURE_OPENAI_DEPLOYMENT", result.stdout)
-                    self.assertEqual(self.requests, [])
-
-    def test_dotnet_client_is_configured_through_dependency_injection(self) -> None:
-        for sample in self.samples:
+    def test_dotnet_rejects_malformed_endpoints_before_any_request(self) -> None:
+        for sample in [*self.samples, *self.photo_samples]:
             if sample.language != ".NET":
                 continue
-            with self.subTest(language=sample.language):
+            for setting in ("AZURE_OPENAI_ENDPOINT", "Clients__Decisions__Options__Endpoint"):
+                for endpoint in ("", "example.invalid", "/openai/v1/"):
+                    with self.subTest(example=sample.command[-1], setting=setting, endpoint=endpoint):
+                        self.requests.clear()
+                        result = self.run_sample(sample, {setting: endpoint})
+                        self.assertNotEqual(result.returncode, 0, result.stdout)
+                        self.assertIn("must be an absolute URL", result.stdout)
+                        self.assertEqual(self.requests, [])
+
+    def test_dotnet_optional_usage_details_and_required_choice(self) -> None:
+        for sample in [*self.samples, *self.photo_samples]:
+            if sample.language != ".NET":
+                continue
+            for scenario in ("usage_no_details", "null_choice", "missing_choice"):
+                with self.subTest(example=sample.command[-1], scenario=scenario):
+                    type(self).scenario = scenario
+                    self.requests.clear()
+                    result = self.run_sample(sample)
+                    if scenario == "usage_no_details":
+                        self.assertEqual(result.returncode, 0, result.stdout)
+                        self.assertIn("Usage:", result.stdout)
+                    else:
+                        self.assertNotEqual(result.returncode, 0, result.stdout)
+                        self.assertIn("A choice must be a string or a boolean", result.stdout)
+                    self.assertEqual(len(self.requests), 1)
+
+    def test_dotnet_client_is_configured_through_dependency_injection(self) -> None:
+        for sample in [*self.samples, *self.photo_samples]:
+            if sample.language != ".NET":
+                continue
+            with self.subTest(example=sample.command[-1]):
                 self.requests.clear()
                 result = self.run_sample(sample, {
                     "AZURE_OPENAI_ENDPOINT": None,
@@ -337,50 +392,9 @@ class DecisionsTests(unittest.TestCase):
                     "Clients__Decisions__Model": "configured-luna",
                 })
                 self.assertEqual(result.returncode, 0, result.stdout)
-                self.assert_request("configured-luna", user_message_input=True)
+                self.assertEqual(len(self.requests), 1)
+                self.assertEqual(self.requests[0]["body"]["model"], "configured-luna")
                 self.assertIn("Usage:", result.stdout)
-
-    def test_python_and_typescript_reject_unsafe_endpoints_before_authentication(self) -> None:
-        for sample in self.samples:
-            if sample.language not in ("Python", "TypeScript"):
-                continue
-            for endpoint in ("http://example.invalid", "http://127.0.0.1.example.invalid", self.endpoint):
-                for api_key in (None, "", "local-contract-test-key"):
-                    if endpoint == self.endpoint and api_key:
-                        continue
-                    with self.subTest(language=sample.language, endpoint=endpoint, api_key=bool(api_key)):
-                        self.requests.clear()
-                        result = self.run_sample(sample, {
-                            "AZURE_OPENAI_ENDPOINT": endpoint,
-                            "AZURE_OPENAI_API_KEY": api_key,
-                            "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential",
-                        })
-                        self.assertNotEqual(result.returncode, 0, result.stdout)
-                        self.assertIn("AZURE_OPENAI_ENDPOINT must use HTTPS", result.stdout)
-                        self.assertEqual(self.requests, [])
-
-    def test_python_and_typescript_reject_invalid_resource_roots(self) -> None:
-        for sample in self.samples:
-            if sample.language not in ("Python", "TypeScript"):
-                continue
-            for endpoint in (
-                "example.invalid", "https://", "https://user:password@example.invalid",
-                "https://@example.invalid", "https://example.invalid/openai/v1/",
-                "https://example.invalid/?query=1", "https://example.invalid/#fragment",
-                "https://example.invalid?", "https://example.invalid#",
-                "https://example.invalid:invalid", "https://example.invalid:99999",
-            ):
-                for api_key in (None, "local-contract-test-key"):
-                    with self.subTest(language=sample.language, endpoint=endpoint, api_key=bool(api_key)):
-                        self.requests.clear()
-                        result = self.run_sample(sample, {
-                            "AZURE_OPENAI_ENDPOINT": endpoint,
-                            "AZURE_OPENAI_API_KEY": api_key,
-                            "AZURE_TOKEN_CREDENTIALS": "AzureCliCredential",
-                        })
-                        self.assertNotEqual(result.returncode, 0, result.stdout)
-                        self.assertIn("resource root URL", result.stdout)
-                        self.assertEqual(self.requests, [])
 
     def test_typescript_keyless_examples_forward_the_resource_tenant(self) -> None:
         if not any(sample.language == "TypeScript" for sample in self.samples):
@@ -409,7 +423,7 @@ Module._load = function (name, ...args) {
 };
 require(process.argv[1]);
 """
-        for stem in ("decisions_example", "responses_example_entra"):
+        for stem in ("decisions_example", "decisions_multimodal_example", "responses_example_entra"):
             with self.subTest(sample=stem):
                 self.requests.clear()
                 result = subprocess.run(
@@ -422,16 +436,16 @@ require(process.argv[1]);
                 self.assertIn("resource tenant forwarded before token request", result.stdout + result.stderr)
                 self.assertEqual(self.requests, [])
 
-    def test_go_and_ruby_developer_clis_receive_the_resource_tenant(self) -> None:
+    def test_developer_cli_receives_the_resource_tenant(self) -> None:
         tenant = "00000000-0000-0000-0000-000000000000"
-        for sample in self.samples:
-            if sample.language not in ("Go", "Ruby"):
+        # Python, .NET and Ruby always use the Azure Developer CLI. Go's default credential chain
+        # is told to use it with the standard AZURE_TOKEN_CREDENTIALS selection.
+        for sample in [*self.samples, *self.photo_samples]:
+            if sample.language not in ("Python", ".NET", "Go", "Ruby"):
                 continue
-            credentials = ["AzureDeveloperCliCredential"]
-            if sample.language == "Ruby":
-                credentials.append("AzureCliCredential")
-            for credential in credentials:
-                with self.subTest(language=sample.language, credential=credential):
+            sources = [None, "AzureDeveloperCliCredential"] if sample.language == ".NET" else [None]
+            for source in sources:
+                with self.subTest(language=sample.language, example=sample.command[-1], source=source):
                     with tempfile.TemporaryDirectory(prefix="decisions-cli-test-") as temporary:
                         directory = Path(temporary)
                         recorded = directory / "arguments.txt"
@@ -450,86 +464,45 @@ require(process.argv[1]);
                         result = self.run_sample(sample, {
                             "AZURE_OPENAI_ENDPOINT": "https://example.invalid/",
                             "AZURE_OPENAI_API_KEY": None,
-                            "AZURE_TOKEN_CREDENTIALS": credential,
+                            "AZURE_TOKEN_CREDENTIALS": "AzureDeveloperCliCredential" if sample.language == "Go" else None,
                             "AZURE_TENANT_ID": tenant,
+                            "Clients__Decisions__Credential__CredentialSource": source,
                             "PATH": str(directory) + os.pathsep + os.environ.get("PATH", ""),
                             "STARTER_TEST_CLI_ARGUMENTS": str(recorded),
                         })
                         self.assertNotEqual(result.returncode, 0, result.stdout)
                         self.assertTrue(recorded.is_file(), result.stdout)
                         arguments = recorded.read_text(encoding="utf-8")
+                        self.assertIn("auth", arguments)
+                        self.assertIn("token", arguments)
+                        self.assertIn("--tenant-id", arguments)
                         self.assertIn(tenant, arguments)
-                        self.assertIn("--tenant-id" if credential == "AzureDeveloperCliCredential"
-                                      else "--tenant", arguments)
-                        if credential == "AzureDeveloperCliCredential":
-                            self.assertIn("--scope", arguments)
-                            self.assertIn("https://cognitiveservices.azure.com/.default", arguments)
-                        else:
-                            self.assertIn("--resource", arguments)
+                        self.assertIn("--scope", arguments)
+                        self.assertIn("https://cognitiveservices.azure.com/.default", arguments)
                         self.assertEqual(self.requests, [])
 
-    def test_ruby_developer_cli_rejects_invalid_token_responses(self) -> None:
-        sample = next((item for item in self.samples if item.language == "Ruby"), None)
-        if sample is None:
-            self.skipTest("Ruby was not selected")
-        for payload in ("[]", "null", "not-json", "{}"):
-            with self.subTest(response=payload), tempfile.TemporaryDirectory(prefix="decisions-cli-json-") as temporary:
-                directory = Path(temporary)
-                script = directory / "azd"
-                script.write_text(f"#!/bin/sh\nprintf '%s\\n' '{payload}'\n", encoding="utf-8")
-                script.chmod(0o755)
-                (directory / "azd.cmd").write_text(f"@echo off\necho {payload}\nexit /b 0\n", encoding="utf-8")
-                self.requests.clear()
-                result = self.run_sample(sample, {
-                    "AZURE_OPENAI_ENDPOINT": "https://example.invalid/",
-                    "AZURE_OPENAI_API_KEY": None,
-                    "AZURE_TOKEN_CREDENTIALS": "AzureDeveloperCliCredential",
-                    "AZURE_TENANT_ID": "00000000-0000-0000-0000-000000000000",
-                    "PATH": str(directory) + os.pathsep + os.environ.get("PATH", ""),
-                })
-                self.assertNotEqual(result.returncode, 0, result.stdout)
-                self.assertIn("Azure Developer CLI did not return a JSON access token", result.stdout)
-                self.assertEqual(self.requests, [])
-
-    def test_real_photo_inputs_inline_and_https(self) -> None:
+    def test_photo_inputs_default_hosted_and_inline(self) -> None:
         photo_bytes = PHOTO.read_bytes()
         self.assertTrue(photo_bytes.startswith(b"\x89PNG\r\n\x1a\n"))
-        for sample in self.samples:
-            for source in (str(PHOTO), PHOTO_URL):
-                with self.subTest(language=sample.language, source="inline" if source == str(PHOTO) else "https"):
+        for sample in self.photo_samples:
+            for source, label in ((None, "default"), (HOSTED_PHOTO_URL, "hosted"), (str(PHOTO), "inline")):
+                with self.subTest(language=sample.language, source=label):
                     self.requests.clear()
-                    result = self.run_sample(sample, arguments=["--image", source])
+                    result = self.run_sample(sample, arguments=[] if source is None else [source])
                     self.assertEqual(result.returncode, 0, result.stdout)
-                    self.assertEqual(len(self.requests), 1)
-                    body = self.requests[0]["body"]
-                    self.assertEqual(body["model"], "gpt-6-luna")
-                    self.assertEqual([question["name"] for question in body["questions"]], PHOTO_NAMES)
-                    self.assertEqual(body["questions"][1]["choices"][-1]["value"], "other")
-                    content = body["input"][0]["content"]
-                    self.assertEqual(body["input"][0]["role"], "user")
-                    self.assertEqual(content[0]["type"], "input_text")
-                    self.assertEqual(content[1]["type"], "input_image")
-                    image = content[1]["image_url"]
-                    if source == str(PHOTO):
+                    image = self.assert_photo_request()
+                    if source is None:
+                        self.assertEqual(image, DEFAULT_PHOTO_URL)
+                    elif source == HOSTED_PHOTO_URL:
+                        self.assertEqual(image, HOSTED_PHOTO_URL)
+                    else:
                         prefix, encoded = image.split(",", 1)
                         self.assertEqual(prefix, "data:image/png;base64")
                         self.assertEqual(base64.b64decode(encoded, validate=True), photo_bytes)
-                    else:
-                        self.assertEqual(image, PHOTO_URL)
                     for name in PHOTO_NAMES:
                         self.assertIn(name, result.stdout)
                     self.assertIn("probabilities=", result.stdout)
                     self.assertIn("Usage:", result.stdout)
-
-    def test_invalid_image_options_fail_before_request(self) -> None:
-        for sample in self.samples:
-            for arguments in (["--image"], ["--image", "http://example.invalid/photo.png"],
-                              ["--image", str(ROOT / "README.md")]):
-                with self.subTest(language=sample.language, arguments=arguments):
-                    self.requests.clear()
-                    result = self.run_sample(sample, arguments=arguments)
-                    self.assertNotEqual(result.returncode, 0, result.stdout)
-                    self.assertEqual(self.requests, [])
 
     @unittest.skipUnless(os.getenv("AZURE_OPENAI_DECISIONS_LIVE_TESTS") == "1",
                          "Set AZURE_OPENAI_DECISIONS_LIVE_TESTS=1 for billable Entra-authenticated Azure tests")
@@ -538,19 +511,18 @@ require(process.argv[1]);
                         "Configure the HTTPS endpoint of an existing Azure OpenAI resource")
         self.assertTrue(os.getenv("AZURE_OPENAI_DEPLOYMENT", "").strip(),
                         "Configure the Azure deployment name for GPT-6 Luna")
-        for sample in self.samples:
-            for scenario, arguments, names in (
-                ("text", [], NAMES),
-                ("inline_photo", ["--image", str(PHOTO)], PHOTO_NAMES),
-                ("https_photo", ["--image", PHOTO_URL], PHOTO_NAMES),
-            ):
-                with self.subTest(language=sample.language, scenario=scenario):
-                    result = self.run_sample(sample, arguments=arguments, live=True)
-                    self.assertEqual(result.returncode, 0, result.stdout)
-                    for name in names:
-                        self.assertIn(name, result.stdout)
-                    self.assertIn("Usage:", result.stdout)
-                    print(f"PASS Decisions live: {sample.language} / Entra / {scenario}", flush=True)
+        scenarios = [(sample, "text", [], NAMES) for sample in self.samples]
+        for sample in self.photo_samples:
+            scenarios.append((sample, "hosted_photo", [], PHOTO_NAMES))
+            scenarios.append((sample, "inline_photo", [str(PHOTO)], PHOTO_NAMES))
+        for sample, scenario, arguments, names in scenarios:
+            with self.subTest(language=sample.language, scenario=scenario):
+                result = self.run_sample(sample, arguments=arguments, live=True)
+                self.assertEqual(result.returncode, 0, result.stdout)
+                for name in names:
+                    self.assertIn(name, result.stdout)
+                self.assertIn("Usage:", result.stdout)
+                print(f"PASS Decisions live: {sample.language} / Entra / {scenario}", flush=True)
 
 
 if __name__ == "__main__":

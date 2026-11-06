@@ -96,3 +96,4 @@ output AZURE_OPENAI_NAME string = openai.outputs.AZURE_OPENAI_NAME
 output AZURE_OPENAI_RESOURCE_ID string = openai.outputs.AZURE_OPENAI_RESOURCE_ID
 output AZURE_OPENAI_GPT_DEPLOYMENT_NAME string = openai.outputs.AZURE_OPENAI_GPT_DEPLOYMENT_NAME
 output AZURE_OPENAI_DEPLOYMENT string = openai.outputs.AZURE_OPENAI_DEPLOYMENT
+output AZURE_TENANT_ID string = tenant().tenantId

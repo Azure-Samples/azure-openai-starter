@@ -167,6 +167,10 @@ delete an existing Azure deployment; manage its lifecycle explicitly.
 
 ### 3. Run a sample
 
+Every language has two Decisions examples. The **text** example routes a support
+ticket with a predicate, a choice and a score question. The **multimodal** example
+asks the same kinds of question about a photo. Run the text example first:
+
 ```bash
 export AZURE_OPENAI_ENDPOINT="$(azd env get-value AZURE_OPENAI_ENDPOINT)"
 export AZURE_OPENAI_DEPLOYMENT="$(azd env get-value AZURE_OPENAI_DEPLOYMENT)"
@@ -187,44 +191,48 @@ Use the same two-variable configuration in every language. [.env.example](./.env
 documents the shape; export its values into your shell before running a sample.
 The examples build the SDK base URL as `https://{resource}.openai.azure.com/openai/v1/`.
 
-Leave `AZURE_OPENAI_API_KEY` unset for the default passwordless flow using
-Azure Identity credentials. The .NET examples use configuration-backed credential
-selection and dependency injection; see the [.NET guide](./src/dotnet/README.md).
-Other SDK examples use `DefaultAzureCredential` and bearer token providers as
-appropriate for the language. Ruby uses an Azure CLI
-Entra token, or an Azure Developer CLI token when
-`AZURE_TOKEN_CREDENTIALS=AzureDeveloperCliCredential` is set, because there is no
-Azure Identity Ruby implementation in this starter. For multi-tenant developer
-logins, set `AZURE_TENANT_ID` to the resource's tenant.
-Set an API key only for the explicit fallback; never commit credentials.
+Leave `AZURE_OPENAI_API_KEY` unset for the default passwordless flow. The Python,
+.NET and Ruby examples use your `azd auth login` session. TypeScript, Go and Java use
+`DefaultAzureCredential`, so an `az login` session or a managed identity also works.
+The .NET examples use configuration-backed credential selection and dependency
+injection; see the [.NET guide](./src/dotnet/README.md). If your login spans several
+tenants, also set `AZURE_TENANT_ID` to the tenant that owns the resource
+(`azd env get-value AZURE_TENANT_ID` returns it). The Python, TypeScript, Go, .NET
+and Ruby examples then request tokens for that tenant. Set an API key only for the
+explicit fallback; never commit credentials. The examples send your credentials to the
+endpoint you configure, so use only your own resource's HTTPS endpoint.
 
-| Language | Decisions implementation | Run from its sample directory |
-|---|---|---|
-| [Python](./src/python/decisions_example.py) | Native OpenAI SDK | `python decisions_example.py` |
-| [TypeScript / JavaScript](./src/typescript/decisions_example.ts) | Native OpenAI SDK | `npm run decisions` |
-| [Go](./src/go/decisions_example/main.go) | Native OpenAI SDK | `go run .` |
-| [Java](./src/java/src/main/java/com/azure/openai/starter/DecisionsExample.java) | Native OpenAI SDK | `mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsExample` |
-| [Ruby](./src/ruby/decisions_example.rb) | Native OpenAI SDK | `bundle exec ruby decisions_example.rb` |
-| [.NET / C#](./src/dotnet/decisions_example.cs) | Native OpenAI SDK (typed `DecisionsClient`) | `dotnet run decisions_example.cs` |
+| Language | Run from | Text example | Multimodal example |
+|---|---|---|---|
+| Python | `src/python` | [`python decisions_example.py`](./src/python/decisions_example.py) | [`python decisions_multimodal_example.py`](./src/python/decisions_multimodal_example.py) |
+| TypeScript / JavaScript | `src/typescript` | [`npm run decisions`](./src/typescript/decisions_example.ts) | [`npm run decisions:multimodal`](./src/typescript/decisions_multimodal_example.ts) |
+| Go | its example directory | [`go run .`](./src/go/decisions_example/main.go) in `src/go/decisions_example` | [`go run .`](./src/go/decisions_multimodal_example/main.go) in `src/go/decisions_multimodal_example` |
+| Java | `src/java` | [`mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsExample`](./src/java/src/main/java/com/azure/openai/starter/DecisionsExample.java) | [`mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsMultimodalExample`](./src/java/src/main/java/com/azure/openai/starter/DecisionsMultimodalExample.java) |
+| Ruby | `src/ruby` | [`bundle exec ruby decisions_example.rb`](./src/ruby/decisions_example.rb) | [`bundle exec ruby decisions_multimodal_example.rb`](./src/ruby/decisions_multimodal_example.rb) |
+| .NET / C# | `src/dotnet` | [`dotnet run decisions_example.cs`](./src/dotnet/decisions_example.cs) | [`dotnet run decisions_multimodal_example.cs`](./src/dotnet/decisions_multimodal_example.cs) |
+
+All six use their native OpenAI SDK. The .NET examples use the typed `DecisionsClient`.
 
 **Documentation authors:** [docs/decisions.md](./docs/decisions.md) provides
 Microsoft Learn-style language tabs that include these runnable sources directly.
 It separates current Azure-documented behavior from OpenAI SDK capabilities.
-The .NET example uses the typed `DecisionsClient` that ships in OpenAI 2.15.0; it is
+The .NET examples use the typed `DecisionsClient` that ships in OpenAI 2.15.0; it is
 experimental in that SDK.
 
-### 4. Try a real photo, inline or by HTTPS URL
+### 4. Try the multimodal example
 
-Each sample accepts the same `--image PATH_OR_HTTPS_URL` option. It changes the
-three batched questions to visible damage, object category with an `other`
-fallback, and damage severity. The local file is encoded as a data URL; a public
-HTTPS URL is passed to Azure for fetching. There is no client-side URL download.
+The multimodal example sends text and an image, then asks about visible damage, the
+object category (with an `other` fallback) and damage severity. With no argument it
+sends a public-domain NASA photo by HTTPS URL, which Azure fetches itself. Pass your own
+public HTTPS image URL or the path to a PNG, JPEG, WebP or GIF file instead; a local
+file is sent inline as a base64 data URL. The examples do not download the image.
 
 From the repository root, for example:
 
 ```bash
-python src/python/decisions_example.py --image images/decisions-photo.png
-python src/python/decisions_example.py --image https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/astronaut.png
+python src/python/decisions_multimodal_example.py
+python src/python/decisions_multimodal_example.py images/decisions-photo.png
+python src/python/decisions_multimodal_example.py https://example.com/your-photo.png
 ```
 
 The included image is a real NASA photograph released into the public domain;
@@ -246,7 +254,7 @@ benchmark. You can substitute a photo relevant to your own application.
   `other` category and probability thresholds; do not expect ambiguity to
   produce a refusal.
 - Image formats: **PNG, JPEG, WebP and GIF**; at most **128 images** and **32 MB
-  combined** per request. These samples send one image and enforce the file limit.
+  combined** per request. These samples send one image.
 - Review [Azure OpenAI pricing](https://azure.microsoft.com/pricing/details/azure-openai/)
   for the current input, cache-read and cache-write charges. The
   [OpenAI Decisions guide](https://developers.openai.com/api/docs/guides/decisions)
@@ -300,7 +308,7 @@ python -m unittest discover -s tests -v
 
 The contract suite runs the real SDK clients against a local
 HTTP server, checks payloads and deployment overrides, and exercises refusals,
-HTTP failures, and malformed responses. It does not prove Azure rollout or quota.
+HTTP failures and unusable responses. It does not prove Azure rollout or quota.
 Live tests require an existing deployment and can incur charges:
 
 - Responses: `AZURE_OPENAI_LIVE_TESTS=1` (requires its documented key and Entra setup).
