@@ -1,12 +1,15 @@
 ﻿<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1440 880" font-family="'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif">
   <title>The Azure OpenAI Starter Kit</title>
-  <desc>Five SDKs call Responses; Python, TypeScript, Go, Java, Ruby and C# use native Decisions
-    clients. Authentication uses Microsoft Entra ID
-    or an API key. Ruby can obtain an Entra token from the Azure CLI. Azure Developer CLI and
-    Bicep provision an Azure OpenAI account, GPT-6.1 Sol at version 2026-09-29, and a user role.
-    GPT-6 Luna at version 2026-09-22 is an optional DataZoneStandard or GlobalStandard deployment,
-    subject to regional rollout and quota. The default account region is East US.</desc>
+  <desc>Native SDK clients authenticate with Microsoft Entra ID or an API key to call two
+    Azure OpenAI APIs in one account. The Responses API uses the default GPT-6.1 Sol
+    deployment at version 2026-09-29 for generation, reasoning and conversations.
+    The Decisions API uses an opt-in GPT-6 Luna deployment at version 2026-09-22
+    to classify, route and score text and images. Six languages have native Decisions
+    examples. Ruby obtains its Entra token from Azure Developer CLI. Azure Developer CLI
+    and Bicep provision the account, the default Responses deployment and the deploying
+    user's role; the Decisions deployment is added only when opted in.
+    Decisions supports DataZoneStandard or GlobalStandard subject to region and quota.</desc>
   <defs>
     <linearGradient id="canvasBg" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0" stop-color="#FFFFFF" />
@@ -41,7 +44,7 @@
   <rect width="1440" height="880" fill="url(#canvasBg)" />
   <g text-anchor="middle">
     <text x="720" y="62" font-size="38" font-weight="700" fill="#0A2540" letter-spacing="-0.5">The Azure OpenAI Starter Kit</text>
-    <text x="720" y="97" font-size="19" fill="#5A6B7C">GPT-6.1 Sol Responses · optional GPT-6 Luna Decisions · one-command deployment</text>
+    <text x="720" y="97" font-size="19" fill="#5A6B7C">Responses API by default &#183; Decisions API opt-in &#183; passwordless access &#183; one-command deployment</text>
   </g>
   <g transform="translate(60,175)">
     <text y="-24" font-size="13" font-weight="700" fill="#5A6B7C" letter-spacing="1">NATIVE SDK CLIENTS</text>
@@ -105,6 +108,7 @@
     <text x="105" y="132" text-anchor="middle" font-size="15" fill="#5A6B7C">Passwordless access</text>
     <text x="105" y="157" text-anchor="middle" font-size="13" fill="#5A6B7C">Azure Identity / CLI + RBAC</text>
   </g>
+  <text x="630" y="526" text-anchor="middle" font-size="13" fill="#5A6B7C">Both APIs share authentication</text>
   <g transform="translate(525,552)">
     <rect width="210" height="107" rx="14" fill="#FFFFFF" stroke="#C7DDF0" stroke-dasharray="5 4" />
     <text x="105" y="32" text-anchor="middle" font-size="18" font-weight="600" fill="#0A2540">API key</text>
@@ -119,28 +123,36 @@
       <rect width="542" height="498" rx="15" fill="url(#serviceBg)" stroke="#C7DDF0" stroke-width="1.5" />
       <text x="24" y="40" font-size="27" font-weight="700" fill="#0A2540">Azure OpenAI</text>
       <text x="24" y="65" font-size="15" fill="#5A6B7C">Account + model deployments + user role</text>
-      <g transform="translate(20,90)">
-        <rect width="502" height="100" rx="12" fill="#F2F8FD" stroke="#C7DDF0" />
-        <use href="#brandAzd" x="16" y="23" width="48" height="48" />
-        <text x="80" y="42" font-family="'Cascadia Code',Consolas,monospace" font-size="26" font-weight="700" fill="#0A2540">azd up</text>
-        <text x="80" y="68" font-size="14" fill="#5A6B7C">One-command provisioning</text>
-        <line x1="314" y1="18" x2="314" y2="82" stroke="#C7DDF0" />
-        <use href="#brandBicep" x="332" y="28" width="40" height="40" />
-        <text x="382" y="54" font-size="20" font-weight="600" fill="#0A2540">Bicep</text>
+      <g transform="translate(20,84)">
+        <rect width="502" height="90" rx="12" fill="#F2F8FD" stroke="#C7DDF0" />
+        <use href="#brandAzd" x="16" y="20" width="44" height="44" />
+        <text x="80" y="40" font-family="'Cascadia Code',Consolas,monospace" font-size="25" font-weight="700" fill="#0A2540">azd up</text>
+        <text x="80" y="64" font-size="14" fill="#5A6B7C">One-command provisioning</text>
+        <line x1="314" y1="14" x2="314" y2="76" stroke="#C7DDF0" />
+        <use href="#brandBicep" x="332" y="25" width="40" height="40" />
+        <text x="382" y="52" font-size="20" font-weight="600" fill="#0A2540">Bicep</text>
       </g>
-      <g transform="translate(20,211)">
-        <rect width="502" height="175" rx="12" fill="#FFFFFF" stroke="#7BB3DC" stroke-width="1.5" />
-        <text x="22" y="34" font-size="25" font-weight="700" fill="#0A2540">GPT-6.1 Sol · Responses</text>
-        <text x="22" y="60" font-size="15" fill="#5A6B7C">2026-09-29 · GlobalStandard · default</text>
-        <line x1="22" y1="79" x2="480" y2="79" stroke="#C7DDF0" />
-        <text x="22" y="111" font-size="23" font-weight="700" fill="#0A2540">GPT-6 Luna · Decisions</text>
-        <text x="22" y="137" font-size="15" fill="#5A6B7C">2026-09-22 · DataZone / Global · opt-in</text>
-        <text x="22" y="159" font-size="13" fill="#5A6B7C">Check rollout, model version, capacity and quota first</text>
+      <g id="responses-api" transform="translate(20,192)">
+        <rect width="502" height="126" rx="12" fill="#FFFFFF" stroke="#7BB3DC" stroke-width="1.5" />
+        <text x="22" y="32" font-size="25" font-weight="700" fill="#0A2540">Responses API</text>
+        <rect x="374" y="13" width="106" height="24" rx="12" fill="#EDF3F9" />
+        <text x="427" y="29" text-anchor="middle" font-size="12" font-weight="700" fill="#5A6B7C">DEFAULT</text>
+        <text x="22" y="57" font-size="15" fill="#5A6B7C">Generate text &#183; reason &#183; converse</text>
+        <text x="22" y="80" font-size="14" fill="#5A6B7C">GPT-6.1 Sol &#183; 2026-09-29 &#183; GlobalStandard</text>
+        <rect x="18" y="93" width="466" height="23" rx="6" fill="#0A2540" />
+        <text x="30" y="109" font-family="'Cascadia Code',Consolas,monospace" font-size="14" fill="#FFFFFF">POST /openai/v1/responses</text>
       </g>
-      <text x="271" y="418" text-anchor="middle" font-size="18" font-weight="600" fill="#0A2540">Two v1 APIs · separate deployment names</text>
-      <rect x="20" y="435" width="502" height="50" rx="10" fill="#0A2540" />
-      <text x="271" y="455" text-anchor="middle" font-family="'Cascadia Code',Consolas,monospace" font-size="15" fill="#FFFFFF">/openai/v1/responses</text>
-      <text x="271" y="476" text-anchor="middle" font-family="'Cascadia Code',Consolas,monospace" font-size="15" fill="#FFFFFF">/openai/v1/decisions (opt-in)</text>
+      <g id="decisions-api" transform="translate(20,332)">
+        <rect width="502" height="126" rx="12" fill="#EAF4FF" stroke="#0078D4" stroke-width="1.8" />
+        <text x="22" y="32" font-size="25" font-weight="700" fill="#0078D4">Decisions API</text>
+        <rect x="374" y="13" width="106" height="24" rx="12" fill="#0078D4" />
+        <text x="427" y="29" text-anchor="middle" font-size="12" font-weight="700" fill="#FFFFFF">OPT-IN</text>
+        <text x="22" y="57" font-size="15" fill="#5A6B7C">Classify &#183; route &#183; score text + images</text>
+        <text x="22" y="80" font-size="14" fill="#5A6B7C">GPT-6 Luna &#183; 2026-09-22 &#183; DataZoneStandard / GlobalStandard</text>
+        <rect x="18" y="93" width="466" height="23" rx="6" fill="#0A2540" />
+        <text x="30" y="109" font-family="'Cascadia Code',Consolas,monospace" font-size="14" fill="#FFFFFF">POST /openai/v1/decisions</text>
+      </g>
+      <text x="271" y="483" text-anchor="middle" font-size="13" fill="#5A6B7C">Separate deployment names &#183; Decisions is opt-in &#183; check region and quota</text>
     </g>
   </g>
   <g fill="none" stroke="#7BB3DC" stroke-width="2" marker-end="url(#arrowHead)">

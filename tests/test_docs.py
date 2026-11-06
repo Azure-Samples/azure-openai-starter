@@ -33,12 +33,53 @@ class DocumentationTests(unittest.TestCase):
     def test_hero_matches_title_and_describes_optional_deployment(self) -> None:
         root = ET.parse(ROOT / "images" / "architecture.svg").getroot()
         namespace = {"svg": "http://www.w3.org/2000/svg"}
-        self.assertEqual(root.find("svg:title", namespace).text, "The Azure OpenAI Starter Kit")
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        title = re.search(r"^# (.+)$", readme, re.MULTILINE)
+        self.assertIsNotNone(title)
+        self.assertEqual(root.find("svg:title", namespace).text, title.group(1))
         text = " ".join(root.itertext())
         for required in ("2026-09-29", "2026-09-22", "opt-in", "Six native Decisions SDKs", "Ruby"):
             self.assertIn(required, text)
         self.assertNotIn("REST", text)
         self.assertEqual(root.attrib["viewBox"], "0 0 1440 880")
+        for group, required, forbidden in (
+            ("responses-api", ("Responses API", "GPT-6.1 Sol", "DEFAULT", "POST /openai/v1/responses"),
+             ("GPT-6 Luna", "OPT-IN")),
+            ("decisions-api", ("Decisions API", "GPT-6 Luna", "OPT-IN", "POST /openai/v1/decisions"),
+             ("GPT-6.1 Sol", "DEFAULT")),
+        ):
+            with self.subTest(api=group):
+                card = root.find(f".//svg:g[@id='{group}']", namespace)
+                self.assertIsNotNone(card)
+                visible = " ".join("".join(item.itertext()) for item in card.findall(".//svg:text", namespace))
+                for label in required:
+                    self.assertIn(label, visible)
+                for label in forbidden:
+                    self.assertNotIn(label, visible)
+
+    def test_hero_png_is_readme_sized_and_svg_is_self_contained(self) -> None:
+        image = (ROOT / "images" / "aoaistarterimage.png").read_bytes()
+        self.assertTrue(image.startswith(b"\x89PNG\r\n\x1a\n"))
+        self.assertEqual(struct.unpack(">II", image[16:24]), (1100, 672))
+        root = ET.parse(ROOT / "images" / "architecture.svg").getroot()
+        for logo in root.findall(".//{http://www.w3.org/2000/svg}image"):
+            self.assertTrue(logo.attrib["href"].startswith("data:image/"))
+
+    def test_readme_announces_decisions_before_architecture(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        start = readme.index("## New: Decisions API")
+        end = readme.index("## Architecture")
+        self.assertLess(start, end)
+        announcement = readme[start:end]
+        for required in (
+            "Responses API", "Decisions API", "GPT-6.1 Sol (default)", "GPT-6 Luna (opt-in)",
+            "text and multimodal", "Python", "TypeScript/JavaScript", "Go", "Java", "Ruby", ".NET",
+            "(#decisions-classify-route-and-score)", "(./CLIENT_README.md)",
+        ):
+            with self.subTest(content=required):
+                self.assertIn(required, announcement)
+        self.assertIn("## Decisions: classify, route, and score", readme)
+        self.assertIn("](./images/aoaistarterimage.png)", readme)
 
     def test_photo_is_the_attributed_real_public_domain_fixture(self) -> None:
         photo = (ROOT / "images" / "decisions-photo.png").read_bytes()

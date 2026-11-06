@@ -18,19 +18,38 @@ description: Deploy GPT-6.1 Sol with azd. Optionally add GPT-6 Luna for Decision
 -->
 # The Azure OpenAI Starter Kit
 
-Deploy Azure OpenAI with one command. Use **GPT-6.1 Sol** with the Responses API,
-or optionally add **GPT-6 Luna** for fast classification, routing, and scoring
-with the Decisions API.
+Deploy Azure OpenAI with one command. Use **GPT-6.1 Sol** with the **Responses API**,
+and optionally add **GPT-6 Luna** for classification, routing, and scoring with the
+**Decisions API**.
+
+## New: Decisions API
+
+Turn text and images into **structured decisions, not generated prose** with the
+[Azure OpenAI Decisions API](https://learn.microsoft.com/azure/foundry/openai/how-to/decisions).
+Batch related questions in one request to get predicate probabilities, predefined
+choices, and scores, with per-question refusals handled explicitly.
+
+| API | Use it for | Model deployment |
+|---|---|---|
+| **Responses API** | Generate text, reason, and have conversations | GPT-6.1 Sol (default) |
+| **Decisions API** | Classify, route, and score text or images | GPT-6 Luna (opt-in) |
+
+Try separate **text and multimodal examples** in Python, TypeScript/JavaScript,
+Go, Java, Ruby, and .NET, using the native OpenAI SDKs.
+
+**Get started:** [Enable Decisions and run a sample](#decisions-classify-route-and-score)
+or follow the [language setup guide](./CLIENT_README.md).
 
 ## Architecture
 
-![The Azure OpenAI Starter Kit architecture](./images/aoaistarterimage.png)
+![Architecture: native SDKs use Entra ID or an API key to call the Responses API with GPT-6.1 Sol or the opt-in Decisions API with GPT-6 Luna](./images/aoaistarterimage.png)
 
 [SVG source](./images/architecture.svg). Bicep provisions an Azure OpenAI account,
 the Responses model deployment, and the deploying user's Cognitive Services User
 role assignment. The Decisions deployment is **opt-in**, not an additional
-resource provisioned by default. All samples support API keys or passwordless
-access; Ruby uses an Azure CLI or explicitly selected Azure Developer CLI token.
+resource provisioned by default. Both APIs support passwordless access with
+Microsoft Entra ID or an explicit API-key alternative. The Ruby examples obtain
+an Entra token from your Azure Developer CLI (`azd`) login.
 
 ## Prerequisites
 
