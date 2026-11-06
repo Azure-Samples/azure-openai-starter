@@ -350,7 +350,7 @@ class DecisionsTests(unittest.TestCase):
             if sample.language != ".NET":
                 continue
             for setting in ("AZURE_OPENAI_ENDPOINT", "Clients__Decisions__Options__Endpoint"):
-                for endpoint in ("", "example.invalid", "/openai/v1/"):
+                for endpoint in ("", "example.invalid", "/openai/v1/", "file:///tmp/decisions"):
                     with self.subTest(example=sample.command[-1], setting=setting, endpoint=endpoint):
                         self.requests.clear()
                         result = self.run_sample(sample, {setting: endpoint})

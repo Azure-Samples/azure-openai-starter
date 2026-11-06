@@ -29,8 +29,9 @@ if (settings["Options:Endpoint"] is null)
     settings["Options:Endpoint"] = $"{endpoint.TrimEnd('/')}/openai/v1/";
 }
 // The SDK ignores an endpoint that is not an absolute URL and falls back to api.openai.com.
-if (!Uri.TryCreate(settings["Options:Endpoint"], UriKind.Absolute, out _))
-    throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT must be an absolute URL such as https://YOUR-RESOURCE.openai.azure.com/");
+if (!Uri.TryCreate(settings["Options:Endpoint"], UriKind.Absolute, out var endpointUri)
+    || endpointUri.Scheme is not ("http" or "https"))
+    throw new InvalidOperationException("AZURE_OPENAI_ENDPOINT must be an absolute URL using HTTP or HTTPS.");
 settings["Credential:TenantId"] ??= builder.Configuration["AZURE_TENANT_ID"];
 settings["Credential:Scope"] ??= "https://cognitiveservices.azure.com/.default";
 if (settings["Credential:CredentialSource"] is null)

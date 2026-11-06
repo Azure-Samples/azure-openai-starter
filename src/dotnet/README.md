@@ -138,7 +138,7 @@ argument it sends a public-domain NASA photo by HTTPS URL. No client-side URL do
 occurs. Both examples batch three questions and print named answers, probabilities
 and usage. An HTTP error stops the example with the service's error message.
 Empty answers, missing usage, unknown answer types and choices without a value
-also fail explicitly. The endpoint must be an absolute URL so invalid configuration
+also fail explicitly. The endpoint must be an absolute HTTP(S) URL so invalid configuration
 cannot silently redirect the SDK to its default OpenAI endpoint.
 
 ## Packages and validation
