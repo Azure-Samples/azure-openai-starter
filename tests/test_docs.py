@@ -65,21 +65,62 @@ class DocumentationTests(unittest.TestCase):
         for logo in root.findall(".//{http://www.w3.org/2000/svg}image"):
             self.assertTrue(logo.attrib["href"].startswith("data:image/"))
 
-    def test_readme_announces_decisions_before_architecture(self) -> None:
+    def test_readme_overview_links_to_both_quickstarts(self) -> None:
         readme = (ROOT / "README.md").read_text(encoding="utf-8")
-        start = readme.index("## New: Decisions API")
+        start = readme.index("## Overview")
         end = readme.index("## Architecture")
         self.assertLess(start, end)
-        announcement = readme[start:end]
+        overview = readme[start:end]
         for required in (
             "Responses API", "Decisions API", "GPT-6.1 Sol (default)", "GPT-6 Luna (opt-in)",
-            "text and multimodal", "Python", "TypeScript/JavaScript", "Go", "Java", "Ruby", ".NET",
-            "(#decisions-classify-route-and-score)", "(./CLIENT_README.md)",
+            "(#quick-start-responses)", "(#quick-start-decisions)",
         ):
             with self.subTest(content=required):
-                self.assertIn(required, announcement)
-        self.assertIn("## Decisions: classify, route, and score", readme)
+                self.assertIn(required, overview)
+        prose = " ".join(line for line in overview.splitlines() if not line.startswith(("#", "|")))
+        self.assertLessEqual(len(prose.split()), 55)
+        self.assertEqual(len([line for line in overview.splitlines() if line.startswith("|")]), 4)
+        self.assertIn("## Quick start: Responses", readme)
+        self.assertIn("## Quick start: Decisions", readme)
+        self.assertNotIn("## New: Decisions API", readme)
         self.assertIn("](./images/aoaistarterimage.png)", readme)
+
+    def test_decisions_quickstart_is_short_and_runnable(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        match = re.search(r"^## Quick start: Decisions\n(.*?)(?=^## |\Z)", readme, re.MULTILINE | re.DOTALL)
+        self.assertIsNotNone(match)
+        quickstart = match.group(1).strip()
+        self.assertLessEqual(len(quickstart.splitlines()), 60)
+        prose = re.sub(r"```.*?```", "", quickstart, flags=re.DOTALL)
+        self.assertLessEqual(len(prose.split()), 150)
+        for required in (
+            "GPT-6 Luna", "AZURE_OPENAI_DEPLOY_DECISIONS true", "azd up",
+            "AZURE_OPENAI_ENDPOINT", "AZURE_OPENAI_DEPLOYMENT",
+            "decisions_example.py", "decisions_multimodal_example.py",
+            "```bash", "```powershell", "CLIENT_README.md",
+        ):
+            with self.subTest(content=required):
+                self.assertIn(required, quickstart)
+        self.assertNotIn("azd env set AZURE_LOCATION", quickstart)
+        self.assertNotIn("## Azure behavior and latency notes", readme)
+
+    def test_readme_detail_links_resolve_in_client_guide(self) -> None:
+        readme = (ROOT / "README.md").read_text(encoding="utf-8")
+        guide = (ROOT / "CLIENT_README.md").read_text(encoding="utf-8")
+        for required in (
+            "## Decisions deployment", "## Decisions API notes", "East US 2",
+            "DataZoneStandard", "GlobalStandard", "AZURE_OPENAI_DECISIONS_MODEL_VERSION",
+            "AZURE_OPENAI_DECISIONS_CAPACITY",
+        ):
+            with self.subTest(content=required):
+                self.assertIn(required, guide)
+        headings = re.findall(r"^#{1,6} (.+)$", guide, re.MULTILINE)
+        anchors = {re.sub(r"[^\w\s-]", "", heading).lower().replace(" ", "-") for heading in headings}
+        links = re.findall(r"\]\(\./CLIENT_README\.md#([^)]+)\)", readme)
+        self.assertTrue(links)
+        for anchor in links:
+            with self.subTest(anchor=anchor):
+                self.assertIn(anchor, anchors)
 
     def test_photo_is_the_attributed_real_public_domain_fixture(self) -> None:
         photo = (ROOT / "images" / "decisions-photo.png").read_bytes()

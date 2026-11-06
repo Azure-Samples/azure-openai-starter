@@ -22,23 +22,16 @@ Deploy Azure OpenAI with one command. Use **GPT-6.1 Sol** with the **Responses A
 and optionally add **GPT-6 Luna** for classification, routing, and scoring with the
 **Decisions API**.
 
-## New: Decisions API
-
-Turn text and images into **structured decisions, not generated prose** with the
-[Azure OpenAI Decisions API](https://learn.microsoft.com/azure/foundry/openai/how-to/decisions).
-Batch related questions in one request to get predicate probabilities, predefined
-choices, and scores, with per-question refusals handled explicitly.
+## Overview
 
 | API | Use it for | Model deployment |
 |---|---|---|
 | **Responses API** | Generate text, reason, and have conversations | GPT-6.1 Sol (default) |
 | **Decisions API** | Classify, route, and score text or images | GPT-6 Luna (opt-in) |
 
-Try separate **text and multimodal examples** in Python, TypeScript/JavaScript,
-Go, Java, Ruby, and .NET, using the native OpenAI SDKs.
-
-**Get started:** [Enable Decisions and run a sample](#decisions-classify-route-and-score)
-or follow the [language setup guide](./CLIENT_README.md).
+Use [Responses](#quick-start-responses) when you want generated text, and
+[Decisions](#quick-start-decisions) when you want structured probabilities, choices,
+and scores instead of prose.
 
 ## Architecture
 
@@ -85,9 +78,8 @@ Set the resource endpoint, then run a passwordless example:
 ```bash
 export AZURE_OPENAI_ENDPOINT="$(azd env get-value AZURE_OPENAI_ENDPOINT)"
 export AZURE_OPENAI_GPT_DEPLOYMENT_NAME="$(azd env get-value AZURE_OPENAI_GPT_DEPLOYMENT_NAME)"
-cd src/python
-python -m pip install -r requirements.txt
-python responses_example_entra.py
+python -m pip install -r src/python/requirements.txt
+python src/python/responses_example_entra.py
 ```
 
 PowerShell:
@@ -95,9 +87,8 @@ PowerShell:
 ```powershell
 $env:AZURE_OPENAI_ENDPOINT = azd env get-value AZURE_OPENAI_ENDPOINT
 $env:AZURE_OPENAI_GPT_DEPLOYMENT_NAME = azd env get-value AZURE_OPENAI_GPT_DEPLOYMENT_NAME
-Set-Location src\python
-python -m pip install -r requirements.txt
-python responses_example_entra.py
+python -m pip install -r src\python\requirements.txt
+python src\python\responses_example_entra.py
 ```
 
 Responses samples cover simple text, conversations, explicit error handling,
@@ -115,85 +106,34 @@ configuration using the [appsettings example](./src/dotnet/appsettings.example.j
 or double-underscore environment keys. The OpenAI SDK's `AddResponsesClient`
 handles binding; these examples no longer translate the common starter variables.
 
-## Decisions: classify, route, and score
+## Quick start: Decisions
 
-The [Azure OpenAI Decisions API](https://learn.microsoft.com/azure/foundry/openai/how-to/decisions)
-uses a **GPT-6 Luna deployment**, not GPT-6.1 Sol. Its typed answers include
-predicate probabilities, predefined choices, scores, and per-question refusals.
-The samples batch a predicate, a choice with an `other` fallback, and a severity
-score in one request. Every language uses the same scenarios and prints named
-answers, option probabilities, confidence and token usage.
-
-The fastest way to explore is the **Decision playground** in the Foundry portal:
-open the GPT-6 Luna deployment, choose **Open in playground**, then **Decision
-playground**. The examples below are for integrating that flow into an application.
-
-### 1. Check region and model availability
+The [Decisions API](https://learn.microsoft.com/azure/foundry/openai/how-to/decisions)
+needs a **GPT-6 Luna** deployment, not Sol. Enable it as an opt-in deployment in the
+same Azure OpenAI account:
 
 ```bash
-python scripts/check-model-support.py --region eastus --model gpt-6-luna --sku DataZoneStandard
-python scripts/check-model-support.py --region westus3 --model gpt-6-luna --sku DataZoneStandard --format json
-```
-
-The West US 3 command inspects Luna only; it does not validate this starter's
-separate Sol deployment. Check **both** models and their respective SKUs before
-choosing a nondefault region for the combined template.
-
-The script uses read-only `az cognitiveservices model list` calls. It reports
-model versions and deployment SKUs when Azure returns them, and distinguishes
-catalog visibility from actual endpoint support. It does **not** deploy resources,
-read keys, consume model tokens, or prove quota/capacity.
-
-The Decisions documentation checked on **2026-10-23** excludes **East US 2** from
-the rollout, even if GPT-6 Luna appears in that region's model catalog. Recheck the
-[current rollout documentation](https://learn.microsoft.com/azure/foundry/openai/how-to/decisions)
-and [regional model table](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability).
-The azd preprovision check rejects `AZURE_OPENAI_DEPLOY_DECISIONS=true` with
-`AZURE_LOCATION=eastus2` before creating resources, and the Bicep `location`
-parameter does not list East US 2 as an allowed region at all. That also applies
-to GPT-6.1 Sol-only deployments, so an existing East US 2 environment cannot be
-provisioned again with this template; create a new environment in an allowed region.
-Use `--all-regions` only when you intend to query every subscription-visible
-location; this can take several minutes.
-
-### 2. Optionally provision a Decisions deployment
-
-Choose a region supported by **both** deployments before provisioning.
-The default is `eastus`. Prefer `DataZoneStandard` for Luna when available in
-your region and subscription; use `GlobalStandard` if that is the appropriate
-available SKU. Neither SKU guarantees a particular latency.
-
-```bash
-azd env set AZURE_LOCATION eastus
+azd auth login
 azd env set AZURE_OPENAI_DEPLOY_DECISIONS true
-azd env set AZURE_OPENAI_DECISIONS_MODEL_VERSION 2026-09-22
-azd env set AZURE_OPENAI_DECISIONS_SKU DataZoneStandard
-azd env set AZURE_OPENAI_DECISIONS_CAPACITY 10
+# Only if Luna is unavailable as DataZoneStandard in your region:
+# azd env set AZURE_OPENAI_DECISIONS_SKU GlobalStandard
 azd up
 ```
 
-GPT-6 Luna (`2026-09-22`) is listed in the
-[public Azure model catalog](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure).
-The optional deployment defaults to `DataZoneStandard` and has separate quota
-and billing. Set `AZURE_OPENAI_DECISIONS_SKU=GlobalStandard` before provisioning
-to select that alternative; for example, Australia East, Japan East and UK South
-currently list only `GlobalStandard` for Luna. See the
-[deployment-type guidance](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)
-and live model catalog; do not assume every model/SKU is available in every region.
-If you already have a Luna deployment, skip this step and set its name directly.
-Disabling the option in a later incremental deployment does not necessarily
-delete an existing Azure deployment; manage its lifecycle explicitly.
+By default, this adds GPT-6 Luna (`2026-09-22`) on `DataZoneStandard`, with its own
+quota and billing; see [Decisions deployment](./CLIENT_README.md#decisions-deployment)
+for regions, SKUs, and capacity. An existing Luna deployment works without
+provisioning; configure it as described in [Configuration](./CLIENT_README.md#configuration).
 
-### 3. Run a sample
-
-Every language has two Decisions examples. The **text** example routes a support
-ticket with a predicate, a choice and a score question. The **multimodal** example
-asks the same kinds of question about a photo. Run the text example first:
+From the repository root, set the endpoint and Luna deployment name, then run the text
+and multimodal samples:
 
 ```bash
 export AZURE_OPENAI_ENDPOINT="$(azd env get-value AZURE_OPENAI_ENDPOINT)"
 export AZURE_OPENAI_DEPLOYMENT="$(azd env get-value AZURE_OPENAI_DEPLOYMENT)"
+python -m pip install -r src/python/requirements.txt
 python src/python/decisions_example.py
+python src/python/decisions_multimodal_example.py
 ```
 
 PowerShell:
@@ -201,92 +141,16 @@ PowerShell:
 ```powershell
 $env:AZURE_OPENAI_ENDPOINT = azd env get-value AZURE_OPENAI_ENDPOINT
 $env:AZURE_OPENAI_DEPLOYMENT = azd env get-value AZURE_OPENAI_DEPLOYMENT
+python -m pip install -r src\python\requirements.txt
 python src\python\decisions_example.py
+python src\python\decisions_multimodal_example.py
 ```
 
-`AZURE_OPENAI_DEPLOYMENT` is your **Azure deployment name**, not a model selector;
-it must refer to a deployment of `gpt-6-luna`, the only supported Decisions model.
-Use the same two-variable configuration in every language. [.env.example](./.env.example)
-documents the shape; export its values into your shell before running a sample.
-The examples build the SDK base URL as `https://{resource}.openai.azure.com/openai/v1/`.
-
-Leave `AZURE_OPENAI_API_KEY` unset for the default passwordless flow. The Python,
-.NET and Ruby examples use your `azd auth login` session. TypeScript, Go and Java use
-`DefaultAzureCredential`, so an `az login` session or a managed identity also works.
-The .NET examples use configuration-backed credential selection and dependency
-injection; see the [.NET guide](./src/dotnet/README.md). If your login spans several
-tenants, also set `AZURE_TENANT_ID` to the tenant that owns the resource
-(`azd env get-value AZURE_TENANT_ID` returns it). The Python, TypeScript, Go, .NET
-and Ruby examples then request tokens for that tenant. Set an API key only for the
-explicit fallback; never commit credentials. The examples send your credentials to the
-endpoint you configure, so use only your own resource's HTTPS endpoint.
-
-| Language | Run from | Text example | Multimodal example |
-|---|---|---|---|
-| Python | `src/python` | [`python decisions_example.py`](./src/python/decisions_example.py) | [`python decisions_multimodal_example.py`](./src/python/decisions_multimodal_example.py) |
-| TypeScript / JavaScript | `src/typescript` | [`npm run decisions`](./src/typescript/decisions_example.ts) | [`npm run decisions:multimodal`](./src/typescript/decisions_multimodal_example.ts) |
-| Go | its example directory | [`go run .`](./src/go/decisions_example/main.go) in `src/go/decisions_example` | [`go run .`](./src/go/decisions_multimodal_example/main.go) in `src/go/decisions_multimodal_example` |
-| Java | `src/java` | [`mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsExample`](./src/java/src/main/java/com/azure/openai/starter/DecisionsExample.java) | [`mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsMultimodalExample`](./src/java/src/main/java/com/azure/openai/starter/DecisionsMultimodalExample.java) |
-| Ruby | `src/ruby` | [`bundle exec ruby decisions_example.rb`](./src/ruby/decisions_example.rb) | [`bundle exec ruby decisions_multimodal_example.rb`](./src/ruby/decisions_multimodal_example.rb) |
-| .NET / C# | `src/dotnet` | [`dotnet run decisions_example.cs`](./src/dotnet/decisions_example.cs) | [`dotnet run decisions_multimodal_example.cs`](./src/dotnet/decisions_multimodal_example.cs) |
-
-All six use their native OpenAI SDK. The .NET examples use the typed `DecisionsClient`.
-
-**Documentation authors:** [docs/decisions.md](./docs/decisions.md) provides
-Microsoft Learn-style language tabs that include these runnable sources directly.
-It separates current Azure-documented behavior from OpenAI SDK capabilities.
-The .NET examples use the typed `DecisionsClient` that ships in OpenAI 2.15.0; it is
-experimental in that SDK.
-
-### 4. Try the multimodal example
-
-The multimodal example sends text and an image, then asks about visible damage, the
-object category (with an `other` fallback) and damage severity. With no argument it
-sends a public-domain NASA photo by HTTPS URL, which Azure fetches itself. Pass your own
-public HTTPS image URL or the path to a PNG, JPEG, WebP or GIF file instead; a local
-file is sent inline as a base64 data URL. The examples do not download the image.
-
-From the repository root, for example:
-
-```bash
-python src/python/decisions_multimodal_example.py
-python src/python/decisions_multimodal_example.py images/decisions-photo.png
-python src/python/decisions_multimodal_example.py https://example.com/your-photo.png
-```
-
-The included image is a real NASA photograph released into the public domain;
-see [image attribution](./images/decisions-photo.md). It is a transport example,
-not evidence that the photo depicts a damaged object or a fixed model-quality
-benchmark. You can substitute a photo relevant to your own application.
-
-## Azure behavior and latency notes
-
-- Decisions is non-streaming: each request returns a single JSON response.
-- These examples send **uncompressed JSON**. Do not enable request compression
-  for this sample flow.
-- No example depends on prompt caching. Cache counters can be **zero**; usage
-  reports input totals and any returned cache-read/write breakdowns.
-- Missing or incorrect deployment names can produce Azure-style **400 or 404**
-  errors. Handle non-success HTTP responses generically instead of matching
-  OpenAI-specific error text.
-- Handle safety refusals explicitly. For ambiguous classifications, use the
-  `other` category and probability thresholds; do not expect ambiguity to
-  produce a refusal.
-- Image formats: **PNG, JPEG, WebP and GIF**; at most **128 images** and **32 MB
-  combined** per request. These samples send one image.
-- Review [Azure OpenAI pricing](https://azure.microsoft.com/pricing/details/azure-openai/)
-  for the current input, cache-read and cache-write charges. The
-  [OpenAI Decisions guide](https://developers.openai.com/api/docs/guides/decisions)
-  states that Decision output tokens are not charged; confirm the applicable
-  Azure price and deployment tier rather than copying OpenAI dollar rates.
-- Create one client and reuse it for additional batches, keeping HTTP connections
-  warm. Deploy near your application and batch related questions instead of
-  making a new connection/request for every question.
-
-JSON input, conversation/tool history, explicit caching controls and Live
-integration are deliberately **not demonstrated** here. Those advanced payloads
-must be validated against the target Azure deployment before adding them; SDK
-type availability alone is not a service-compatibility test.
+The text sample routes a support ticket. The multimodal sample assesses a public NASA
+photo by default; pass your own HTTPS URL or image path as an argument
+([Real-photo scenarios](./CLIENT_README.md#real-photo-scenarios)). Both use your
+`azd auth login` identity by default; `AZURE_OPENAI_API_KEY` is an optional fallback.
+For TypeScript, Go, Java, .NET, and Ruby, see the [client guide](./CLIENT_README.md).
 
 ## SDK baseline
 
@@ -302,12 +166,8 @@ were checked on **2026-10-23**, except .NET, which was checked on **2026-11-05**
 | [Ruby](https://rubygems.org/gems/openai/versions/0.111.0) | `0.111.0` |
 | [.NET](https://www.nuget.org/packages/OpenAI/2.15.0) | `2.15.0` (Responses and the experimental Decisions client) |
 
-The non-.NET release notes call out type changes to message inputs and structured
-instruction parts. Updating an existing application can require source changes.
-The Learn article's older minimums (Python 3.26.0 and JavaScript 7.30.0) are valid
-for its basic text examples; this starter deliberately pins the newer GA-type releases.
-Model availability, service-feature availability, and SDK type availability are
-different checks; installing a newer SDK does not enable an Azure feature.
+A newer SDK can require source changes and does not enable an Azure feature; see the
+[Decisions API notes](./CLIENT_README.md#decisions-api-notes).
 
 ## Validation
 

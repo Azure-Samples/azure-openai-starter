@@ -30,7 +30,8 @@ common starter variables. See the [.NET guide](./src/dotnet/README.md).
 | `AZURE_TENANT_ID` | Keyless examples | Optional tenant that owns the resource; see below |
 
 The Responses and Decisions deployment settings are separate. A Sol deployment cannot serve a Decisions
-request. `model` always identifies your Azure deployment, not an arbitrary model
+request: `AZURE_OPENAI_DEPLOYMENT` must name a `gpt-6-luna` deployment, the only supported
+Decisions model. `model` always identifies your Azure deployment, not an arbitrary model
 selected by the SDK. An omitted Decisions API key selects passwordless
 authentication. For local development, run `azd auth login` and ensure the
 calling identity has the **Cognitive Services User** role on the resource
@@ -62,7 +63,7 @@ Remove-Item Env:AZURE_OPENAI_API_KEY -ErrorAction SilentlyContinue
 When provisioning with azd, obtain these values with `azd env get-value
 AZURE_OPENAI_ENDPOINT` and `azd env get-value AZURE_OPENAI_DEPLOYMENT`, plus
 `azd env get-value AZURE_TENANT_ID` for the optional tenant.
-For the explicit API-key fallback, set `AZURE_OPENAI_API_KEY`; otherwise leave it unset.
+For the explicit API-key fallback, set `AZURE_OPENAI_API_KEY`; otherwise leave it unset. Never commit credentials.
 
 The Decisions examples send your credentials to whatever endpoint you configure.
 Use only your own resource's HTTPS endpoint, and never point real credentials at a
@@ -175,6 +176,53 @@ the samples run `azd auth token` and use the returned bearer token
 for their single request. They never print the token. This is a developer workflow,
 not a managed-identity implementation for a long-running service.
 
+## Decisions deployment
+
+`azd up` provisions only GPT-6.1 Sol by default. Decisions needs a separate **GPT-6 Luna**
+deployment in the same Azure OpenAI account, with its own quota and billing. Only the
+opt-in flag is required:
+
+```bash
+azd env set AZURE_OPENAI_DEPLOY_DECISIONS true
+azd up
+```
+
+| azd environment value | Default | Meaning |
+|---|---|---|
+| `AZURE_OPENAI_DEPLOY_DECISIONS` | `false` | Required opt-in; `true` adds the Luna deployment |
+| `AZURE_LOCATION` | `eastus` | Region; Sol and Luna must both be available there |
+| `AZURE_OPENAI_DECISIONS_MODEL_VERSION` | `2026-09-22` | Luna version; check the model catalog before overriding |
+| `AZURE_OPENAI_DECISIONS_SKU` | `DataZoneStandard` | `DataZoneStandard` or `GlobalStandard` |
+| `AZURE_OPENAI_DECISIONS_CAPACITY` | `10` | Thousands of tokens per minute |
+
+The deployment is named `gpt-6-luna`; azd outputs that name as `AZURE_OPENAI_DEPLOYMENT`
+(blank unless the opt-in is enabled). GPT-6 Luna (`2026-09-22`) is listed in the
+[public Azure model catalog](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure).
+
+- **SKU:** Prefer `DataZoneStandard` where your region and subscription offer it. Where
+  `GlobalStandard` is the available SKU, run
+  `azd env set AZURE_OPENAI_DECISIONS_SKU GlobalStandard` before provisioning; for
+  example, Australia East, Japan East and UK South currently list only `GlobalStandard`
+  for Luna. Neither SKU guarantees a particular latency. See the
+  [deployment-type guidance](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)
+  and the live model catalog; do not assume every model/SKU is available in every region.
+- **Region:** Choose a region supported by **both** deployments; see
+  [Region/model discovery](#regionmodel-discovery). The Decisions documentation checked on
+  **2026-10-23** excludes **East US 2** from the rollout, even if GPT-6 Luna appears in that
+  region's model catalog. Recheck the
+  [current rollout documentation](https://learn.microsoft.com/azure/foundry/openai/how-to/decisions)
+  and
+  [regional model table](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability).
+  The azd preprovision check rejects `AZURE_OPENAI_DEPLOY_DECISIONS=true` with
+  `AZURE_LOCATION=eastus2` before creating resources, and the Bicep `location` parameter
+  does not list East US 2 at all. That also applies to GPT-6.1 Sol-only deployments, so an
+  existing East US 2 environment cannot be provisioned again with this template; create a
+  new environment in an allowed region.
+- **Existing deployment:** To use a Luna deployment you already have, skip provisioning and
+  set its endpoint and name as described in [Configuration](#configuration).
+- **Disabling:** Turning the option off in a later incremental deployment does not
+  necessarily delete an existing Azure deployment; manage its lifecycle explicitly.
+
 ## Region/model discovery
 
 From the repository root:
@@ -187,8 +235,13 @@ python scripts/check-model-support.py --region westus3 --model gpt-6-luna --sku 
 These commands inspect Luna, not the separate Sol deployment. For a combined
 deployment, verify Sol and its GlobalStandard SKU in the selected region too.
 
+The script makes read-only `az cognitiveservices model list` calls and reports model
+versions and deployment SKUs when Azure returns them. It does not deploy resources,
+read keys or consume model tokens.
+
 Use `--subscription NAME_OR_ID` to inspect a different subscription without
-changing the active CLI subscription. `--all-regions` is opt-in.
+changing the active CLI subscription. `--all-regions` is opt-in; it queries every
+subscription-visible location and can take several minutes.
 
 For an offline inspection, save the JSON returned by
 `az cognitiveservices model list --location REGION --output json` and run:
@@ -227,6 +280,43 @@ https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data
 This is a real public-domain NASA photograph, not a synthetic test pattern.
 See [attribution](./images/decisions-photo.md). Choose a domain-relevant photo to
 evaluate model quality; the sample photo need not depict damage.
+
+## Decisions API notes
+
+- Each sample sends its predicate, choice (with an `other` fallback) and score questions
+  in one batched request and prints named answers, option probabilities, confidence and
+  token usage. To explore without code, open the Luna deployment in the Foundry portal,
+  choose **Open in playground**, then **Decision playground**.
+- Decisions is non-streaming: each request returns a single JSON response. The samples
+  send **uncompressed JSON**; do not enable request compression for this flow.
+- Handle safety refusals explicitly. For ambiguous classifications, use the `other`
+  category and probability thresholds; do not expect ambiguity to produce a refusal.
+- Missing or incorrect deployment names can produce Azure-style **400 or 404** errors.
+  Handle non-success HTTP responses generically instead of matching OpenAI-specific
+  error text.
+- Image formats: **PNG, JPEG, WebP and GIF**; at most **128 images** and **32 MB
+  combined** per request. These samples send one image.
+- No example depends on prompt caching. Cache counters can be **zero**; usage reports
+  input totals and any returned cache-read/write breakdowns.
+- Review [Azure OpenAI pricing](https://azure.microsoft.com/pricing/details/azure-openai/)
+  for the current input, cache-read and cache-write charges. The
+  [OpenAI Decisions guide](https://developers.openai.com/api/docs/guides/decisions)
+  states that Decision output tokens are not charged; confirm the applicable Azure price
+  and deployment tier rather than copying OpenAI dollar rates.
+- Create one client and reuse it for additional batches, keeping HTTP connections warm.
+  Deploy near your application and batch related questions instead of making a new
+  connection/request for every question.
+- JSON input, conversation/tool history, explicit caching controls and Live integration
+  are deliberately **not demonstrated**. Validate those advanced payloads against the
+  target Azure deployment before adding them; SDK type availability alone is not a
+  service-compatibility test.
+- The starter pins the newer GA-type OpenAI releases in the README
+  [SDK baseline](./README.md#sdk-baseline). The Learn article's older minimums (Python
+  3.26.0 and JavaScript 7.30.0) are valid for its basic text examples, but the non-.NET
+  release notes call out type changes to message inputs and structured instruction
+  parts, so upgrading an existing application can require source changes. Model
+  availability, service-feature availability, and SDK type availability are different
+  checks; installing a newer SDK does not enable an Azure feature.
 
 ## Tests
 
