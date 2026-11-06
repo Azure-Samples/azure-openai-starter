@@ -1,620 +1,365 @@
-# Azure OpenAI Starter - Client Examples
+# Client setup and validation
 
-Complete guide to using your deployed Azure OpenAI **GPT-6.1 Sol** model with the **Responses API** in **Python**, **TypeScript/Node.js**, **Go**, **.NET** and **Java**.
+The starter has Responses samples for Python, TypeScript, Go, .NET and Java,
+and Decisions samples for those languages plus Ruby. Every language has two
+Decisions samples: a text sample that classifies a synthetic support ticket and a
+multimodal sample that assesses a photo, each with predicate, choice, and score questions.
+See the [tabbed Decisions article](./docs/decisions.md) for the code and API contract.
+On Windows, install PowerShell 7 (`pwsh`) to run the azd preprovision validation
+hook. Standalone language samples do not require PowerShell.
 
-## About the Responses API
+## Configuration
 
-The Responses API is the newer, cleaner interface designed specifically for GPT-6.1 Sol and other reasoning models. It provides:
+Use your resource's root endpoint, for example
+`https://YOUR-RESOURCE-NAME.openai.azure.com/`, not a deployment-specific URL.
+The examples append `/openai/v1/`. No data-plane `api-version` is needed.
+The .NET Responses examples instead use native OpenAI configuration:
+`Clients:Responses:Options:Endpoint` is the **full v1 URL** and must use HTTPS
+(plain HTTP only for a loopback test server). Their endpoint,
+credentials and model are supplied by configuration, not translated from the
+common starter variables. See the [.NET guide](./src/dotnet/README.md).
 
-- **Simpler syntax**: Uses `input` parameter instead of `messages`
-- **Better for reasoning**: Optimized for GPT-6.1 Sol's internal reasoning capabilities
-- **Cleaner output**: Direct access to response text via `output_text`
-- **Token visibility**: Clear visibility into reasoning tokens vs output tokens
+| Environment variable | Applies to | Default / requirement |
+|---|---|---|
+| `AZURE_OPENAI_ENDPOINT` | All | Required resource root endpoint |
+| `AZURE_OPENAI_API_KEY` | All key-auth samples | Required for Responses key examples; optional for Decisions |
+| `AZURE_OPENAI_GPT_DEPLOYMENT_NAME` | Responses | `gpt-6.1-sol` |
+| `AZURE_OPENAI_REASONING_EFFORT` | Responses | `medium`; also `low`, `high`, `xhigh`, `max` |
+| `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | Responses | `16384`; integer 16 through 128000 |
+| `AZURE_OPENAI_DEPLOYMENT` | Decisions | Your Azure deployment name; defaults to `gpt-6-luna` |
+| `AZURE_TENANT_ID` | Keyless examples | Optional tenant that owns the resource; see below |
 
-## Prerequisites
+The Responses and Decisions deployment settings are separate. A Sol deployment cannot serve a Decisions
+request: `AZURE_OPENAI_DEPLOYMENT` must name a `gpt-6-luna` deployment, the only supported
+Decisions model. `model` always identifies your Azure deployment, not an arbitrary model
+selected by the SDK. An omitted Decisions API key selects passwordless
+authentication. For local development, run `azd auth login` and ensure the
+calling identity has the **Cognitive Services User** role on the resource
+(azd assigns it to the deploying user). Role assignments can take time to propagate.
 
-✅ Azure OpenAI GPT-6.1 Sol deployed (run `azd up` first)  
-✅ Python 3.8+ or Node.js 18+ or Go 1.21+ or .NET 10+ or Java 21+ installed  
-✅ Azure CLI installed and logged in (`az login`)
+The Python, .NET and Ruby keyless examples use your `azd auth login` session through
+the Azure Developer CLI credential. The Python Entra Responses example does too.
+TypeScript, Go and Java use `DefaultAzureCredential`, so an `az login` session or a
+managed identity also works. For production, use a credential made for that
+environment, such as a managed identity.
 
-## 🔐 Recommended: Keyless Authentication (Production Ready)
+If your login has access to multiple tenants, set `AZURE_TENANT_ID` to the tenant
+that owns the resource; `azd env get-value AZURE_TENANT_ID` returns it. The Python,
+TypeScript, Go, .NET and Ruby keyless examples pass it to their credential, so they
+request tokens for that tenant instead of your CLI's current one. Without it they use
+the default tenant.
 
-**This is the secure, production-ready approach. No API keys to manage!**
+Every Decisions sample uses the configuration in [.env.example](./.env.example).
+Export those values into your shell; loading a `.env` file is not automatic in
+every runtime. For example, on Bash, copy the example to `.env`, replace the
+placeholder endpoint, then run `set -a; source .env; set +a`. In PowerShell:
 
-<details>
-<summary><strong>Click to expand Keyless setup and code examples</strong></summary>
-
-### Setup Steps
-
-```bash
-# 1. Get your Azure OpenAI endpoint
-azd env get-values | Select-String 'AZURE_OPENAI_ENDPOINT'
-
-# 2. Set environment variable
-$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
-
-# Note: The "Cognitive Services User" role is automatically assigned to your
-# account during "azd up", so no manual role assignment is needed.
+```powershell
+$env:AZURE_OPENAI_ENDPOINT = "https://YOUR-RESOURCE-NAME.openai.azure.com/"
+$env:AZURE_OPENAI_DEPLOYMENT = "YOUR-LUNA-DEPLOYMENT-NAME"
+Remove-Item Env:AZURE_OPENAI_API_KEY -ErrorAction SilentlyContinue
 ```
 
-### Python Setup & Code
+When provisioning with azd, obtain these values with `azd env get-value
+AZURE_OPENAI_ENDPOINT` and `azd env get-value AZURE_OPENAI_DEPLOYMENT`, plus
+`azd env get-value AZURE_TENANT_ID` for the optional tenant.
+For the explicit API-key fallback, set `AZURE_OPENAI_API_KEY`; otherwise leave it unset. Never commit credentials.
+
+The Decisions examples send your credentials to whatever endpoint you configure.
+Use only your own resource's HTTPS endpoint, and never point real credentials at a
+local stub or an endpoint you do not trust. The offline tests send synthetic
+credentials to a local HTTP server.
+
+## Python
+
+Requires Python 3.10 or newer. From `src/python`:
 
 ```bash
-# Install dependencies
-cd src/python
-pip install -r requirements.txt
-
-# Run with EntraID
+python -m venv .venv
+# Activate the environment with your shell's normal activation command.
+python -m pip install -r requirements.txt
 python responses_example_entra.py
-```
-
-**Python Code Example:**
-```python
-from openai import OpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-import os
-
-# Use DefaultAzureCredential for EntraID authentication
-token_provider = get_bearer_token_provider(
-    DefaultAzureCredential(),
-    "https://cognitiveservices.azure.com/.default"
-)
-
-# Initialize OpenAI client with Azure endpoint and EntraID
-client = OpenAI(
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
-    api_key=token_provider
-)
-
-# Use the Responses API
-response = client.responses.create(
-    model="gpt-6.1-sol",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=16384
-)
-print(response.output_text)
-```
-
-### TypeScript Setup & Code
-
-```bash
-# Install dependencies
-cd src/typescript
-npm install
-
-# Run with EntraID
-tsx responses_example_entra.ts
-```
-
-**TypeScript Code Example:**
-```typescript
-import OpenAI from "openai";
-import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
-
-// Use Azure Identity for authentication
-const credential = new DefaultAzureCredential();
-const scope = "https://cognitiveservices.azure.com/.default";
-const tokenProvider = getBearerTokenProvider(credential, scope);
-
-// Initialize OpenAI client with Azure endpoint and EntraID
-const client = new OpenAI({
-    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
-    apiKey:  await tokenProvider()
-});
-
-// Use the Responses API
-const response = await client.responses.create({
-    model: "gpt-6.1-sol",
-    input: "Explain quantum computing in simple terms",
-    max_output_tokens: 16384
-});
-console.log(response.output_text);
-```
-
-### Go Setup & Code
-
-```bash
-# Run with EntraID
-cd src/go/responses_example_entra
-go run .
-```
-
-### .NET Setup & Code
-
-```bash
-# Run with EntraID (requires .NET 10+)
-cd src/dotnet
-dotnet run responses_example_entra.cs
-```
-
-### Java Setup & Code
-
-```bash
-# Run with EntraID (requires Java 21+ and Maven)
-cd src/java
-mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExampleEntra"
-```
-
-**Why EntraID?**
-- ✅ No API keys to manage or rotate
-- ✅ Uses your Azure CLI login or Managed Identity
-- ✅ Better security with Azure RBAC
-- ✅ Automatic token refresh
-- ✅ Works with service principals and managed identities
-- ✅ Enterprise-grade security compliance
-
-</details>
-
----
-
-## Alternative: API Key Authentication (Quick Start)
-
-**For quick testing and development only. Not recommended for production.**
-
-<details>
-<summary><strong>Click to expand API key setup and code examples</strong></summary>
-
-### Setup Steps
-
-```bash
-# 1. Get all deployment details
-azd env get-values
-
-# 2. Get your API key (use values from step 1)
-az cognitiveservices account keys list --name AZURE_OPENAI_NAME --resource-group rg-AZURE_ENV_NAME
-
-# 3. Set environment variables
-$env:AZURE_OPENAI_ENDPOINT="https://openai-XXXXXX.openai.azure.com/"
-$env:AZURE_OPENAI_API_KEY="your-api-key-here"
-```
-
-**Don't have Azure CLI?** Install it: https://learn.microsoft.com/cli/azure/install-azure-cli
-
-### Python Setup & Code
-
-```bash
-# Install dependencies
-cd src/python
-pip install -r requirements.txt
-
-# Run with API key
 python responses_example.py
+python decisions_example.py
+python decisions_multimodal_example.py
 ```
 
-**Python Code Example:**
-```python
-from openai import OpenAI
-import os
+The requirements pin OpenAI to the checked GA release 3.37.0. Keyless examples
+use Azure Identity. The Decisions examples automatically find an optional `.env`
+file beside the script or in its parent directories. In these examples, existing
+environment variables take precedence over values in the file.
 
-client = OpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/"
-)
+## TypeScript / JavaScript
 
-response = client.responses.create(
-    model="gpt-6.1-sol",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=16384
-)
-print(response.output_text)
-```
-
-### TypeScript Setup & Code
+Requires Node.js 24 or newer. From `src/typescript`:
 
 ```bash
-# Install dependencies
-cd src/typescript
-npm install
-
-# Run with API key
+npm ci
+npm run build
 npm start
+npx tsx responses_example_entra.ts
+npm run decisions
+npm run decisions:multimodal
 ```
 
-**TypeScript Code Example:**
-```typescript
-import OpenAI from 'openai';
+The examples are strict TypeScript. After compilation, run the same samples as
+JavaScript, for example `node dist/decisions_example.js`. The committed npm lock records the dependencies resolved for this starter.
 
-const client = new OpenAI({
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
-    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`
-});
+## Go
 
-const response = await client.responses.create({
-    model: "gpt-6.1-sol",
-    input: "Explain quantum computing in simple terms",
-    max_output_tokens: 16384
-});
-console.log(response.output_text);
-```
-
-### Go Setup & Code
+Requires Go 1.26 or newer. Each example is its own module:
 
 ```bash
-# Run with API key
 cd src/go/responses_example
 go run .
 ```
 
-### .NET Setup & Code
+Or choose `src/go/responses_example_entra`, `src/go/decisions_example` or
+`src/go/decisions_multimodal_example`.
+Restore each module with `go mod download`. The Decisions instructions field
+uses the SDK's string-or-content union rather than assigning a string directly.
+
+## Java
+
+Requires Java 21 and Maven. From `src/java`:
 
 ```bash
-# Run with API key (requires .NET 10+)
-cd src/dotnet
+mvn --batch-mode compile
+mvn exec:java -Dexec.mainClass=com.azure.openai.starter.ResponsesExample
+mvn exec:java -Dexec.mainClass=com.azure.openai.starter.ResponsesExampleEntra
+mvn exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsExample
+mvn exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsMultimodalExample
+```
+
+Dependencies are declared in `pom.xml`; the examples need no sibling Java helper
+classes. The Decisions SDK uses role-specific message and instruction union
+types when advanced inputs are needed; the text example uses a plain text input
+and the multimodal example sends a user message with a text part and an image part.
+
+## .NET / C#
+
+Requires the .NET 10 SDK. File-based package directives restore the dependencies;
+there is no application project file. From `src/dotnet`:
+
+```bash
 dotnet run responses_example.cs
+dotnet run responses_example_entra.cs
+dotnet run decisions_example.cs
+dotnet run decisions_multimodal_example.cs
 ```
 
-### Java Setup & Code
+Responses and Decisions both use the OpenAI 2.15.0 SDK. Decisions uses its typed,
+experimental `DecisionsClient` and the strongly typed `CreateDecisionAsync` method, with
+API-key or Microsoft Entra authentication. See the [.NET guide](./src/dotnet/README.md).
+All .NET examples register their clients through the Generic Host and dependency
+injection. OpenAI's `AddResponsesClient` and `AddDecisionsClient` bind each client's
+options and credentials. The Responses examples require native client configuration;
+the Decisions examples still support the starter environment variables.
+Use `Clients__Responses__...` or `Clients__Decisions__...` settings, or the
+optional [appsettings example](./src/dotnet/appsettings.example.json), to override
+client options and credential sources without editing code. No language sample
+uses an Azure OpenAI wrapper client/package; Azure identity/core components are
+used only for authentication.
+
+## Ruby
+
+Requires Ruby 3.3 or newer and Bundler. From `src/ruby`:
 
 ```bash
-# Run with API key (requires Java 21+ and Maven)
-cd src/java
-mvn clean compile exec:java -Dexec.mainClass="com.azure.openai.starter.ResponsesExample"
+bundle install
+bundle exec ruby decisions_example.rb
+bundle exec ruby decisions_multimodal_example.rb
 ```
 
-</details>
+The native OpenAI gem is pinned to 0.111.0. If `AZURE_OPENAI_API_KEY` is absent,
+the samples run `azd auth token` and use the returned bearer token
+for their single request. They never print the token. This is a developer workflow,
+not a managed-identity implementation for a long-running service.
 
----
+## Decisions deployment
 
-## Reasoning Settings
+`azd up` provisions only GPT-6.1 Sol by default. Decisions needs a separate **GPT-6 Luna**
+deployment in the same Azure OpenAI account, with its own quota and billing. Only the
+opt-in flag is required:
 
-All examples read these optional environment variables:
+```bash
+azd env set AZURE_OPENAI_DEPLOY_DECISIONS true
+azd up
+```
 
-| Variable | Default | Values |
+| azd environment value | Default | Meaning |
 |---|---|---|
-| `AZURE_OPENAI_GPT_DEPLOYMENT_NAME` | `gpt-6.1-sol` | Your deployment name |
-| `AZURE_OPENAI_REASONING_EFFORT` | `medium` | `low`, `medium`, `high`, `xhigh`, `max` |
-| `AZURE_OPENAI_MAX_OUTPUT_TOKENS` | `16384` | 16 to 128000, includes reasoning tokens |
+| `AZURE_OPENAI_DEPLOY_DECISIONS` | `false` | Required opt-in; `true` adds the Luna deployment |
+| `AZURE_LOCATION` | `eastus` | Region; Sol and Luna must both be available there |
+| `AZURE_OPENAI_DECISIONS_MODEL_VERSION` | `2026-09-22` | Luna version; check the model catalog before overriding |
+| `AZURE_OPENAI_DECISIONS_SKU` | `DataZoneStandard` | `DataZoneStandard` or `GlobalStandard` |
+| `AZURE_OPENAI_DECISIONS_CAPACITY` | `10` | Thousands of tokens per minute |
 
-GPT-6.1 Sol does not support the `none` and `minimal` reasoning efforts.
+The deployment is named `gpt-6-luna`; azd outputs that name as `AZURE_OPENAI_DEPLOYMENT`
+(blank unless the opt-in is enabled). GPT-6 Luna (`2026-09-22`) is listed in the
+[public Azure model catalog](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure).
 
-## Example Output
+- **SKU:** Prefer `DataZoneStandard` where your region and subscription offer it. Where
+  `GlobalStandard` is the available SKU, run
+  `azd env set AZURE_OPENAI_DECISIONS_SKU GlobalStandard` before provisioning; for
+  example, Australia East, Japan East and UK South currently list only `GlobalStandard`
+  for Luna. Neither SKU guarantees a particular latency. See the
+  [deployment-type guidance](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/deployment-types)
+  and the live model catalog; do not assume every model/SKU is available in every region.
+- **Region:** Choose a region supported by **both** deployments; see
+  [Region/model discovery](#regionmodel-discovery). The Decisions documentation checked on
+  **2026-10-23** excludes **East US 2** from the rollout, even if GPT-6 Luna appears in that
+  region's model catalog. Recheck the
+  [current rollout documentation](https://learn.microsoft.com/azure/foundry/openai/how-to/decisions)
+  and
+  [regional model table](https://learn.microsoft.com/azure/foundry/foundry-models/concepts/models-sold-directly-by-azure-region-availability).
+  The azd preprovision check rejects `AZURE_OPENAI_DEPLOY_DECISIONS=true` with
+  `AZURE_LOCATION=eastus2` before creating resources, and the Bicep `location` parameter
+  does not list East US 2 at all. That also applies to GPT-6.1 Sol-only deployments, so an
+  existing East US 2 environment cannot be provisioned again with this template; create a
+  new environment in an allowed region.
+- **Existing deployment:** To use a Luna deployment you already have, skip provisioning and
+  set its endpoint and name as described in [Configuration](#configuration).
+- **Disabling:** Turning the option off in a later incremental deployment does not
+  necessarily delete an existing Azure deployment; manage its lifecycle explicitly.
 
-When you run either example, you should see:
+## Region/model discovery
 
-```
-🔗 Connecting to: https://openai-xxx.openai.azure.com/openai/v1/
-🤖 Testing GPT-6.1 Sol model...
-------------------------------------------------------------
-✅ Success! GPT-6.1 Sol response:
---------------------------------------------------
-Hello! I'm GPT-6.1 Sol running on Microsoft Azure. 
+From the repository root:
 
-Something interesting about Sweden: Sweden has a unique concept called "allemansrätten" (the Right to Roam), which gives everyone the legal right to access and enjoy nature freely - you can walk, camp, pick berries, and mushrooms almost anywhere in the country, as long as you don't disturb wildlife or private property. This reflects Sweden's deep cultural connection to nature and trust-based society.
---------------------------------------------------
-📊 Model: gpt-6.1-sol-2026-09-29
-📊 Tokens used: 284
-📊 Input tokens: 45
-📊 Output tokens: 239
-📊 Reasoning tokens: 156
-
-🧠 Testing with a more complex prompt that requires visible output...
-------------------------------------------------------------
-✅ Complex response test:
-------------------------------
-Sweden is distinctive for its blend of social-democratic institutions and strong culture of innovation that has produced globally influential companies. Its unique combination of vast, accessible nature and progressive environmental policies fosters sustainability and a high quality of life.
-------------------------------
-📊 Complex test tokens: 396
-📊 Complex reasoning tokens: 256
-
-🎉 GPT-6.1 Sol is working perfectly!
-```
-
-## Key Features
-
-✅ **GPT-6.1 Sol (2026-09-29)** - Latest reasoning model from OpenAI  
-✅ **New v1 API** - No api-version needed, future-proof  
-✅ **Flexible region** deployment - Choose your optimal region  
-✅ **Standard OpenAI client** - Works with Python, TypeScript, Go, .NET and Java  
-✅ **Minimal dependencies** - Just one package install  
-✅ **No containers** - Direct API calls, no complex setup  
-
-## Code Examples
-
-<details>
-<summary><strong>Click to expand additional code examples</strong></summary>
-
-### 🔐 EntraID Authentication (Recommended)
-
-**Python - EntraID with Responses API:**
-```python
-from openai import OpenAI
-from azure.identity import DefaultAzureCredential, get_bearer_token_provider
-import os
-
-# Use DefaultAzureCredential for EntraID authentication
-token_provider = get_bearer_token_provider(
-    DefaultAzureCredential(),
-    "https://cognitiveservices.azure.com/.default"
-)
-
-# Initialize OpenAI client with Azure endpoint and EntraID authentication
-client = OpenAI(
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}openai/v1/",
-    api_key=token_provider
-)
-
-# Use the Responses API normally
-response = client.responses.create(
-    model="gpt-6.1-sol",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=16384
-)
-print(response.output_text)
+```bash
+python scripts/check-model-support.py --region eastus --model gpt-6-luna --sku DataZoneStandard
+python scripts/check-model-support.py --region westus3 --model gpt-6-luna --sku DataZoneStandard --format json
 ```
 
-**TypeScript - EntraID with Responses API:**
-```typescript
-import OpenAI from "openai";
-import { DefaultAzureCredential, getBearerTokenProvider } from "@azure/identity";
+These commands inspect Luna, not the separate Sol deployment. For a combined
+deployment, verify Sol and its GlobalStandard SKU in the selected region too.
 
-// Use Azure Identity for authentication
-const credential = new DefaultAzureCredential();
-const scope = "https://cognitiveservices.azure.com/.default";
-const tokenProvider = getBearerTokenProvider(credential, scope);
+The script makes read-only `az cognitiveservices model list` calls and reports model
+versions and deployment SKUs when Azure returns them. It does not deploy resources,
+read keys or consume model tokens.
 
-// Use standard OpenAI client with Azure endpoint and token provider
-const client = new OpenAI({
-    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}openai/v1/`,
-    apiKey: tokenProvider as any
-});
+Use `--subscription NAME_OR_ID` to inspect a different subscription without
+changing the active CLI subscription. `--all-regions` is opt-in; it queries every
+subscription-visible location and can take several minutes.
 
-// Use the Responses API normally
-const response = await client.responses.create({
-    model: "gpt-6.1-sol",
-    input: "Explain quantum computing in simple terms",
-    max_output_tokens: 16384
-});
-console.log(response.output_text);
+For an offline inspection, save the JSON returned by
+`az cognitiveservices model list --location REGION --output json` and run:
+
+```bash
+python scripts/check-model-support.py --region eastus --catalog-file catalog.json
 ```
 
----
+Keep subscription-specific catalog snapshots out of source control. A catalog
+entry is not proof of quota, available capacity, a deployed model, or support
+for every Decisions feature. The script labels those limits explicitly.
 
-### API Key Authentication (Quick Start)
+## Real-photo scenarios
 
-<details>
-<summary>Click to expand API key code examples</summary>
+The multimodal Decisions programs take an optional image after the usual command: an
+HTTPS URL or the path to an image file. With no argument they send a public-domain NASA
+photo by HTTPS URL. Local PNG, JPEG, WebP or GIF files become inline base64 data URLs.
+HTTPS URLs are passed to Azure, which must be able to fetch the image without
+your browser session. The samples never download an arbitrary URL themselves.
 
-### Python - Basic Responses API
-```python
-from openai import OpenAI
-import os
+| Language | Inline photo command from the language's sample directory |
+|---|---|
+| Python | `python decisions_multimodal_example.py ../../images/decisions-photo.png` |
+| TypeScript | `npm run decisions:multimodal -- ../../images/decisions-photo.png` |
+| Go (`src/go/decisions_multimodal_example`) | `go run . ../../../images/decisions-photo.png` |
+| Java | `mvn compile exec:java -Dexec.mainClass=com.azure.openai.starter.DecisionsMultimodalExample -Dexec.args="../../images/decisions-photo.png"` |
+| .NET | `dotnet run decisions_multimodal_example.cs -- ../../images/decisions-photo.png` |
+| Ruby | `bundle exec ruby decisions_multimodal_example.rb ../../images/decisions-photo.png` |
 
-client = OpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url=f"{os.getenv('AZURE_OPENAI_ENDPOINT')}/openai/v1/"
-)
+To demonstrate hosted input, replace the path with:
 
-response = client.responses.create(
-    model="gpt-6.1-sol",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=16384
-)
-print(response.output_text)
+```text
+https://raw.githubusercontent.com/scikit-image/scikit-image/v0.25.2/skimage/data/astronaut.png
 ```
 
-### TypeScript - Basic Responses API
-```typescript
-import OpenAI from 'openai';
+This is a real public-domain NASA photograph, not a synthetic test pattern.
+See [attribution](./images/decisions-photo.md). Choose a domain-relevant photo to
+evaluate model quality; the sample photo need not depict damage.
 
-const client = new OpenAI({
-    apiKey: process.env.AZURE_OPENAI_API_KEY,
-    baseURL: `${process.env.AZURE_OPENAI_ENDPOINT}/openai/v1/`
-});
+## Decisions API notes
 
-const response = await client.responses.create({
-    model: "gpt-6.1-sol",
-    input: "Explain quantum computing in simple terms",
-    maxOutputTokens: 16384
-});
-console.log(response.outputText);
+- Each sample sends its predicate, choice (with an `other` fallback) and score questions
+  in one batched request and prints named answers, option probabilities, confidence and
+  token usage. To explore without code, open the Luna deployment in the Foundry portal,
+  choose **Open in playground**, then **Decision playground**.
+- Decisions is non-streaming: each request returns a single JSON response. The samples
+  send **uncompressed JSON**; do not enable request compression for this flow.
+- Handle safety refusals explicitly. For ambiguous classifications, use the `other`
+  category and probability thresholds; do not expect ambiguity to produce a refusal.
+- Missing or incorrect deployment names can produce Azure-style **400 or 404** errors.
+  Handle non-success HTTP responses generically instead of matching OpenAI-specific
+  error text.
+- Image formats: **PNG, JPEG, WebP and GIF**; at most **128 images** and **32 MB
+  combined** per request. These samples send one image.
+- No example depends on prompt caching. Cache counters can be **zero**; usage reports
+  input totals and any returned cache-read/write breakdowns.
+- Review [Azure OpenAI pricing](https://azure.microsoft.com/pricing/details/azure-openai/)
+  for the current input, cache-read and cache-write charges. The
+  [OpenAI Decisions guide](https://developers.openai.com/api/docs/guides/decisions)
+  states that Decision output tokens are not charged; confirm the applicable Azure price
+  and deployment tier rather than copying OpenAI dollar rates.
+- Create one client and reuse it for additional batches, keeping HTTP connections warm.
+  Deploy near your application and batch related questions instead of making a new
+  connection/request for every question.
+- JSON input, conversation/tool history, explicit caching controls and Live integration
+  are deliberately **not demonstrated**. Validate those advanced payloads against the
+  target Azure deployment before adding them; SDK type availability alone is not a
+  service-compatibility test.
+- The starter pins the newer GA-type OpenAI releases in the README
+  [SDK baseline](./README.md#sdk-baseline). The Learn article's older minimums (Python
+  3.26.0 and JavaScript 7.30.0) are valid for its basic text examples, but the non-.NET
+  release notes call out type changes to message inputs and structured instruction
+  parts, so upgrading an existing application can require source changes. Model
+  availability, service-feature availability, and SDK type availability are different
+  checks; installing a newer SDK does not enable an Azure feature.
+
+## Tests
+
+Restore the dependencies above before running the complete suite:
+
+```bash
+python -m unittest discover -s tests -v
 ```
 
-### Python - Conversation Format
-```python
-# The Responses API also supports conversation format
-response = client.responses.create(
-    model="gpt-6.1-sol",
-    input=[
-        {"role": "system", "content": "You are an Azure cloud architect."},
-        {"role": "user", "content": "Design a scalable web application architecture."}
-    ],
-    max_output_tokens=16384
-)
-print(response.output_text)
+This requires Python, Node/npm, Go, .NET, Java/Maven, Ruby/Bundler, and Azure CLI
+with Bicep for the infrastructure check. Offline contract tests need no Azure
+credentials and incur no model charges. They override inherited model/key settings.
+The shell-validator tests use fake CLIs, and availability tests use catalog fixtures.
+
+To test only the installed language toolchains, set `STARTER_TEST_LANGUAGES` to
+a comma-separated selection of `Python`, `TypeScript`, `Go`, `.NET`, `Java`, and
+`Ruby`. For example, `STARTER_TEST_LANGUAGES=Python,TypeScript python -m unittest
+discover -s tests -v` on Bash. Unset the variable for the complete matrix.
+Unknown language names are errors rather than silently skipped tests.
+
+To run only discovery tests, no SDK or Azure CLI is needed:
+
+```bash
+python -m unittest discover -s tests -p test_model_support.py -v
 ```
 
-### TypeScript - Conversation Format
-```typescript
-const response = await client.responses.create({
-    model: "gpt-6.1-sol",
-    input: [
-        { role: "system", content: "You are an Azure cloud architect." },
-        { role: "user", content: "Design a scalable web application architecture." }
-    ],
-    maxOutputTokens: 16384
-});
-console.log(response.outputText);
-```
+Tests for live Responses requests are disabled unless
+`AZURE_OPENAI_LIVE_TESTS=1`. Enabling Responses live tests requires real key and
+Entra access and incurs charges. To run Decisions with Entra only, set
+`AZURE_OPENAI_DECISIONS_LIVE_TESTS=1`, configure the common endpoint/deployment
+settings, and run the suite. It removes the key fallback and exercises text,
+inline photo and hosted photo inputs for every selected language. Do not enable
+live flags in a public CI job with credentials.
 
-### Python - Accessing Reasoning Tokens
-```python
-# GPT-6.1 Sol uses internal reasoning - you can see how many reasoning tokens were used
-response = client.responses.create(
-    model="gpt-6.1-sol",
-    input="Explain quantum computing in simple terms",
-    max_output_tokens=16384
-)
-print(response.output_text)
-print(f"Reasoning tokens: {response.usage.output_tokens_details.reasoning_tokens}")
-```
-
-### TypeScript - Accessing Reasoning Tokens
-```typescript
-// GPT-6.1 Sol uses internal reasoning - you can see how many reasoning tokens were used
-const response = await client.responses.create({
-    model: "gpt-6.1-sol",
-    input: "Explain quantum computing in simple terms",
-    maxOutputTokens: 16384
-});
-console.log(response.outputText);
-console.log(`Reasoning tokens: ${response.usage?.outputTokensDetails?.reasoningTokens}`);
-```
-
-### Python - Accessing Reasoning Tokens
-```python
-# GPT-6.1 Sol uses internal reasoning - you can see the token usage
-response = client.responses.create(
-    model="gpt-6.1-sol",
-    input="Solve this step by step: 15 + 27 - 8 = ?",
-    max_output_tokens=16384
-)
-
-# Access reasoning and output tokens
-print(f"Response: {response.output_text}")
-print(f"Reasoning tokens: {response.usage.reasoning_tokens}")
-print(f"Output tokens: {response.usage.output_tokens}")
-print(f"Total tokens: {response.usage.total_tokens}")
-```
-
-### TypeScript - Accessing Reasoning Tokens
-```typescript
-// GPT-6.1 Sol uses internal reasoning - you can see the token usage
-const response = await client.responses.create({
-    model: "gpt-6.1-sol",
-    input: "Solve this step by step: 15 + 27 - 8 = ?",
-    max_output_tokens: 16384
-});
-
-// Access reasoning and output tokens
-console.log(`Response: ${response.output_text}`);
-console.log(`Reasoning tokens: ${response.usage?.reasoning_tokens}`);
-console.log(`Output tokens: ${response.usage?.output_tokens}`);
-console.log(`Total tokens: ${response.usage?.total_tokens}`);
-```
-
-### Python - Multi-Turn Conversation
-```python
-# Build a conversation with Responses API
-messages = [
-    {"role": "system", "content": "You are a helpful coding assistant."},
-    {"role": "user", "content": "Write a Python function to calculate factorial"}
-]
-
-response = client.responses.create(
-    model="gpt-6.1-sol",
-    input=messages,
-    max_output_tokens=16384
-)
-
-# Add assistant's response to conversation
-messages.append({"role": "assistant", "content": response.output_text})
-
-# Continue the conversation
-messages.append({"role": "user", "content": "Now optimize it with memoization"})
-
-response2 = client.responses.create(
-    model="gpt-6.1-sol",
-    input=messages,
-    max_output_tokens=16384
-)
-print(response2.output_text)
-```
-
-### TypeScript - Multi-Turn Conversation
-```typescript
-// Build a conversation with Responses API
-const messages: Array<{role: string, content: string}> = [
-    { role: "system", content: "You are a helpful coding assistant." },
-    { role: "user", content: "Write a TypeScript function to calculate factorial" }
-];
-
-const response = await client.responses.create({
-    model: "gpt-6.1-sol",
-    input: messages,
-    max_output_tokens: 16384
-});
-
-// Add assistant's response to conversation
-messages.push({ role: "assistant", content: response.output_text ?? "" });
-
-// Continue the conversation
-messages.push({ role: "user", content: "Now optimize it with memoization" });
-
-const response2 = await client.responses.create({
-    model: "gpt-6.1-sol",
-    input: messages,
-    max_output_tokens: 16384
-});
-console.log(response2.output_text);
-```
-
-</details>
-
----
+A local contract test passing is not a live-region certification.
 
 ## Troubleshooting
 
-### EntraID Authentication Issues
-
-**❌ "401 PermissionDenied" with EntraID**  
-→ Assign the "Cognitive Services OpenAI User" role (see setup instructions above)  
-→ Verify you're logged in: `az account show`  
-→ Try logging in again: `az login`
-
-**❌ "DefaultAzureCredential failed to retrieve a token"**  
-→ Ensure Azure CLI is installed and you're logged in: `az login`  
-→ Check you have access to the subscription: `az account list`
-
-### API Key Authentication Issues
-
-**❌ "Missing environment variables"**  
-→ Run `azd env get-values` to get your endpoint  
-→ Get API key: `az cognitiveservices account keys list --name YOUR_RESOURCE_NAME --resource-group rg-YOUR_ENV_NAME`
-
-**❌ "Invalid request" or 401 errors with API key**  
-→ Verify your API key is correct  
-→ Check endpoint URL includes trailing slash: `https://openai-xxx.openai.azure.com/`
-
-### General Issues
-
-**❌ "Model not found"**  
-→ Ensure deployment completed: `azd env get-values` should show `AZURE_OPENAI_GPT_DEPLOYMENT_NAME=gpt-6.1-sol`  
-→ Check deployment status in Azure portal
-
-**❌ "Rate limit exceeded"**  
-→ Default capacity is 10K tokens per minute  
-→ Wait and retry, or increase capacity in Azure portal
-
-## Why the New v1 API?
-
-This template uses Azure OpenAI's **new v1 API endpoint** which:
-
-✅ Uses standard `OpenAI()` client instead of `AzureOpenAI()`  
-✅ No `api_version` parameter needed - future-proof  
-✅ Same client code works for both OpenAI and Azure OpenAI  
-✅ Automatic compatibility with latest OpenAI features  
-✅ Simplified authentication and configuration  
-
-## About the Responses API
-
-This template uses the **Responses API**, which provides a cleaner interface optimized for GPT-6.1 Sol reasoning models:
-
-**Key Benefits:**
-- ✅ Simpler interface - direct `input` parameter instead of message formatting
-- ✅ Direct access to reasoning tokens via `response.usage.output_tokens_details.reasoning_tokens`
-- ✅ Supports both simple text and conversation format
-- ✅ Designed for reasoning models like GPT-6.1 Sol
-- ✅ Cleaner response structure with `output_text` property
-
-**Important:** Use a large `max_output_tokens` (the examples default to 16384). The limit includes GPT-6.1 Sol's internal reasoning tokens, and a low limit can end the response before any text is produced.
-
-## Next Steps
-
-🔧 **Customize the examples**: Edit the example files in `src/` for your use case  
-📚 **Learn more**: [Azure OpenAI documentation](https://learn.microsoft.com/azure/ai-services/openai/)  
-🚀 **Add more models**: Edit `infra/resources.bicep` to deploy additional models  
-⚡ **Scale up**: Increase capacity  
-
----
-
-**🎉 You're now running GPT-6.1 Sol on Azure!** Experience the future of AI reasoning.
+| Symptom | Check |
+|---|---|
+| Decisions returns 404 / deployment not found | Use the Luna deployment name and a region in the current rollout; East US 2 is excluded in the documentation checked 2026-10-23 |
+| 401 or 403 | Check endpoint, credential tenant and resource role assignment; do not print tokens or keys |
+| A newer SDK type compiles but Azure rejects the request | SDK types and Azure feature rollout are separate; confirm the feature in Azure documentation |
+| A package mirror cannot find the documented version | Compare the official registry and your approved package feed; do not silently downgrade the samples |
+| Responses has no visible output | Check incomplete/error status and increase the output-token budget if reasoning consumed it |
+| A region lists a model but provisioning fails | Check deployment SKU, subscription quota and current capacity; catalog visibility alone is insufficient |

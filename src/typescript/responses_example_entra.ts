@@ -39,7 +39,7 @@ async function main(): Promise<void> {
     // For production, use a specific credential (e.g. ManagedIdentityCredential) or set
     // AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
     // https://aka.ms/azsdk/js/identity/credential-chains#defaultazurecredential-overview
-    const credential = new DefaultAzureCredential();
+    const credential = new DefaultAzureCredential({ tenantId: process.env.AZURE_TENANT_ID });
     const scope = "https://cognitiveservices.azure.com/.default";
     const tokenProvider = getBearerTokenProvider(credential, scope);
     

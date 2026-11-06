@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 	"strconv"
@@ -53,6 +54,14 @@ func printResponse(response *responses.Response) {
 	log.Println()
 }
 
+func failRequest(err error) {
+	var apiError *openai.Error
+	if errors.As(err, &apiError) {
+		log.Fatalf("Failed to create responses: HTTP %d: %s", apiError.StatusCode, apiError.Message)
+	}
+	log.Fatalf("Failed to create responses: %s", err)
+}
+
 func newClientUsingAnAPIKey(endpoint string) openai.Client {
 	apiKey := os.Getenv("AZURE_OPENAI_API_KEY")
 
@@ -96,7 +105,7 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to create responses: %s", err)
+		failRequest(err)
 	}
 
 	printResponse(resp)
@@ -130,7 +139,7 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to create responses: %s", err)
+		failRequest(err)
 	}
 
 	printResponse(resp2)

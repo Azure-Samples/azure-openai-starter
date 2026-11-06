@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"net/http"
 	"os"
@@ -57,6 +58,14 @@ func printResponse(response *responses.Response) {
 	log.Println()
 }
 
+func failRequest(err error) {
+	var apiError *openai.Error
+	if errors.As(err, &apiError) {
+		log.Fatalf("Failed to create responses: HTTP %d: %s", apiError.StatusCode, apiError.Message)
+	}
+	log.Fatalf("Failed to create responses: %s", err)
+}
+
 type policyAdapter option.MiddlewareNext
 
 func (mp policyAdapter) Do(req *policy.Request) (*http.Response, error) {
@@ -71,7 +80,9 @@ func newClientUsingEntraAuthentication(endpoint string) openai.Client {
 	// For production, use a specific credential (e.g. azidentity.NewManagedIdentityCredential)
 	// or set AZURE_TOKEN_CREDENTIALS to control which credential is used. See:
 	// https://aka.ms/azsdk/go/identity/credential-chains#defaultazurecredential-overview
-	tokenCredential, err := azidentity.NewDefaultAzureCredential(nil)
+	tokenCredential, err := azidentity.NewDefaultAzureCredential(&azidentity.DefaultAzureCredentialOptions{
+		TenantID: os.Getenv("AZURE_TENANT_ID"),
+	})
 
 	if err != nil {
 		log.Fatalf("Failed to create DefaultAzureCredential: %s", err)
@@ -130,7 +141,7 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to create responses: %s", err)
+		failRequest(err)
 	}
 
 	printResponse(resp)
@@ -164,7 +175,7 @@ func main() {
 	})
 
 	if err != nil {
-		log.Fatalf("Failed to create responses: %s", err)
+		failRequest(err)
 	}
 
 	printResponse(resp2)
